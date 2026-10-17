@@ -8,14 +8,15 @@
 //           DAILY_PER_IP     requests per network address per day, default 20
 //           DAILY_TOTAL      requests for everyone together per day, default 12
 
+const VERSION = 3;
 const DEFAULT_ORIGINS = 'https://tallomovsky-lgtm.github.io';
-const MAX_IMAGE_B64 = 2_000_000; // ~1.5 MB jpeg; the app sends ~200-400 KB
+const MAX_IMAGE_B64 = 3_000_000; // ~2.2 MB jpeg; the app sends ~100-300 KB
 const MAX_DESC = 600;
 
 // Daily quotas, reset at midnight Israel time. With the LIMITS KV binding the counters
 // survive restarts and are shared by every Worker instance; without it they live in
-// memory and only slow abuse down. The monthly spend limit in the Anthropic console
-// is the hard ceiling either way.
+// memory and only slow abuse down. The prepaid credit in the Anthropic console is the
+// hard ceiling either way.
 const mem = new Map();
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' });
 async function getCount(env, key) {
@@ -23,9 +24,9 @@ async function getCount(env, key) {
   return mem.get(key) || 0;
 }
 async function setCount(env, key, n) {
-  if (env.LIMITS) return env.LIMITS.put(key, String(n), { expirationTtl: 172800 });
+  if (env.LIMITS) return env.LIMITS.put(key, String(Math.max(0, n)), { expirationTtl: 172800 });
   if (mem.size > 5000) mem.clear();
-  mem.set(key, n);
+  mem.set(key, Math.max(0, n));
 }
 function limitsOf(env) {
   return {
@@ -34,23 +35,25 @@ function limitsOf(env) {
     total: Number(env.DAILY_TOTAL) || 12,
   };
 }
-// Reserves one request before calling Claude, so a failed call can't be retried for free.
+// Reserves one request before calling Claude; released again if Claude fails.
 async function takeQuota(env, device, ip) {
   const d = today(), lim = limitsOf(env);
-  const keys = { total: `${d}:all`, user: `${d}:u:${device || ip}`, ip: `${d}:ip:${ip}` };
-  const [total, user, byIp] = await Promise.all([getCount(env, keys.total), getCount(env, keys.user), getCount(env, keys.ip)]);
+  const keys = [`${d}:all`, `${d}:u:${device || ip}`, `${d}:ip:${ip}`];
+  const [total, user, byIp] = await Promise.all(keys.map(k => getCount(env, k)));
   if (total >= lim.total) return { ok: false, scope: 'all', limit: lim.total };
-  if (user >= lim.user) return { ok: false, scope: 'user', limit: lim.user };
-  if (byIp >= lim.ip) return { ok: false, scope: 'user', limit: lim.user };
-  await Promise.all([setCount(env, keys.total, total + 1), setCount(env, keys.user, user + 1), setCount(env, keys.ip, byIp + 1)]);
-  return { ok: true, left: Math.max(0, Math.min(lim.user - user - 1, lim.total - total - 1)), limit: lim.user };
+  if (user >= lim.user || byIp >= lim.ip) return { ok: false, scope: 'user', limit: lim.user };
+  await Promise.all([setCount(env, keys[0], total + 1), setCount(env, keys[1], user + 1), setCount(env, keys[2], byIp + 1)]);
+  return { ok: true, keys, left: Math.max(0, Math.min(lim.user - user - 1, lim.total - total - 1)), limit: lim.user };
+}
+async function releaseQuota(env, keys) {
+  try { await Promise.all(keys.map(async k => setCount(env, k, (await getCount(env, k)) - 1))); } catch { /* counters are best effort */ }
 }
 
 function cors(origin, allowed) {
   const ok = allowed.includes(origin);
   return {
     'Access-Control-Allow-Origin': ok ? origin : allowed[0],
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'content-type',
     'Access-Control-Max-Age': '86400',
     'Vary': 'Origin',
@@ -60,10 +63,103 @@ function cors(origin, allowed) {
 function prompt(desc, hasImg) {
   return `You are a precise nutrition estimator. ${hasImg ? 'Look at the attached food photo.' : ''}
 ${desc ? `The user describes the food as: """${desc}""" — trust this description for food identity and quantities when it conflicts with the photo.` : ''}
-Identify each distinct food item, estimate the eaten portion in grams, and estimate calories (kcal), protein, fat and carbohydrates in grams for that portion. Account for visible oil, sauces and dressings. Typical Israeli foods are common (pita, hummus, schnitzel, shakshuka, salads, tahini, bourekas).
+Identify each distinct food item, estimate the eaten portion in grams, and estimate calories (kcal), protein, fat and carbohydrates in grams for that portion. Account for visible oil, sauces and dressings. Typical Israeli foods are common (pita, hummus, schnitzel, shakshuka, salads, tahini, bourekas, sushi).
 Reply with ONLY a JSON object, no other text:
 {"title":"<short Hebrew name for the whole meal>","items":[{"name":"<Hebrew name>","grams":<number>,"kcal":<number>,"protein":<number>,"fat":<number>,"carbs":<number>}],"note":"<one short Hebrew sentence on the main assumption, e.g. portion size or cooking oil>"}
 If there is no food, return {"title":"","items":[],"note":"<Hebrew explanation>"}.`;
+}
+
+// Raw fetch: a Worker pasted into the Cloudflare dashboard has no npm bundler for the SDK.
+// The first attempt asks for low effort and server-side refusal fallbacks; if the API rejects
+// the request shape (400 that isn't about credit), it retries once with only the basics.
+function callClaude(env, content, basic) {
+  const headers = { 'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' };
+  const body = { model: env.MODEL || 'claude-opus-5-5', max_tokens: 16000, messages: [{ role: 'user', content }] };
+  if (!basic) {
+    headers['anthropic-beta'] = 'server-side-fallback-2026-07-01';
+    body.output_config = { effort: 'low' };
+    body.fallbacks = 'default';
+  }
+  return fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers, body: JSON.stringify(body) });
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function errorOf(r) {
+  const j = await r.json().catch(() => null);
+  return { type: j?.error?.type || '', message: String(j?.error?.message || '').slice(0, 240) };
+}
+function codeFor(status, err) {
+  if (/credit balance|billing|purchase credits/i.test(err.message)) return 'no_credit';
+  if (status === 401) return 'bad_key';
+  if (status === 403) return 'forbidden';
+  if (status === 404) return 'model';
+  if (status === 429) return 'busy';
+  if (status === 529 || status >= 500) return 'overloaded';
+  return 'upstream';
+}
+
+async function handle(request, env, reply) {
+  const lim = limitsOf(env);
+  if (request.method === 'GET') {
+    return reply(200, { ok: true, service: 'bis', version: VERSION, key: !!env.ANTHROPIC_API_KEY, limits: env.LIMITS ? 'kv' : 'memory',
+      perUser: lim.user, total: lim.total, usedToday: await getCount(env, `${today()}:all`) });
+  }
+  if (request.method !== 'POST') return reply(405, { error: 'method' });
+  if (!env.ANTHROPIC_API_KEY) return reply(500, { error: 'no_key' });
+
+  let body;
+  try { body = await request.json(); } catch { return reply(400, { error: 'bad_json' }); }
+  const desc = typeof body.desc === 'string' ? body.desc.trim().slice(0, MAX_DESC) : '';
+  const image = typeof body.image === 'string' ? body.image : '';
+  const device = typeof body.device === 'string' && /^[a-z0-9]{8,40}$/.test(body.device) ? body.device : '';
+  if (!desc && !image) return reply(400, { error: 'empty' });
+  // cheap sanity check; scanning the whole base64 string costs CPU time on the free plan
+  if (image && (image.length > MAX_IMAGE_B64 || !/^[A-Za-z0-9+/]{16}/.test(image))) return reply(413, { error: 'image' });
+
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  const quota = await takeQuota(env, device, ip);
+  if (!quota.ok) return reply(429, { error: 'rate_limited', scope: quota.scope, limit: quota.limit });
+
+  try { return await analyze(env, content(image, desc), quota, reply); }
+  catch (e) { await releaseQuota(env, quota.keys); throw e; }
+}
+
+function content(image, desc) {
+  const c = [];
+  if (image) c.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } });
+  c.push({ type: 'text', text: prompt(desc, !!image) });
+  return c;
+}
+
+async function analyze(env, content, quota, reply) {
+  let r = await callClaude(env, content, false);
+  if (r.status === 400) {
+    const err = await errorOf(r.clone());
+    if (codeFor(400, err) !== 'no_credit') r = await callClaude(env, content, true);
+  }
+  if (r.status === 529 || r.status === 500 || r.status === 503) { await sleep(1500); r = await callClaude(env, content, true); }
+  if (!r.ok) {
+    const err = await errorOf(r);
+    await releaseQuota(env, quota.keys);
+    return reply(502, { error: codeFor(r.status, err), status: r.status, message: err.message });
+  }
+
+  const msg = await r.json();
+  if (msg.stop_reason === 'refusal') { await releaseQuota(env, quota.keys); return reply(422, { error: 'refusal' }); }
+  const text = (msg.content || []).filter(c => c.type === 'text').map(c => c.text).join('');
+  const a = text.indexOf('{'), b = text.lastIndexOf('}');
+  let out = null;
+  if (a >= 0 && b > a) { try { out = JSON.parse(text.slice(a, b + 1)); } catch { out = null; } }
+  if (!out) { await releaseQuota(env, quota.keys); return reply(502, { error: 'parse', stop: msg.stop_reason || '' }); }
+  const num = v => Math.max(0, Number(v) || 0);
+  return reply(200, {
+    quota: { left: quota.left, limit: quota.limit },
+    title: String(out.title || '').slice(0, 80),
+    note: String(out.note || '').slice(0, 300),
+    items: (Array.isArray(out.items) ? out.items : []).slice(0, 20).map(x => ({
+      name: String(x.name || '').slice(0, 60), grams: num(x.grams), kcal: num(x.kcal),
+      protein: num(x.protein), fat: num(x.fat), carbs: num(x.carbs),
+    })),
+  });
 }
 
 export default {
@@ -71,70 +167,12 @@ export default {
     const allowed = (env.ALLOWED_ORIGINS || DEFAULT_ORIGINS).split(',').map(s => s.trim()).filter(Boolean);
     const origin = request.headers.get('Origin') || '';
     const headers = cors(origin, allowed);
-    const reply = (status, body) => new Response(JSON.stringify(body), { status, headers: { ...headers, 'content-type': 'application/json; charset=utf-8' } });
+    const reply = (status, body) => new Response(JSON.stringify(body), { status, headers: { ...headers, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
-    if (request.method === 'GET') {
-      const lim = limitsOf(env);
-      return reply(200, { ok: true, service: 'bis', key: !!env.ANTHROPIC_API_KEY, limits: env.LIMITS ? 'kv' : 'memory',
-        perUser: lim.user, total: lim.total, usedToday: await getCount(env, `${today()}:all`) });
-    }
-    if (request.method !== 'POST') return reply(405, { error: 'method' });
-    if (!allowed.includes(origin)) return reply(403, { error: 'origin' });
-    if (!env.ANTHROPIC_API_KEY) return reply(500, { error: 'no_key' });
-
-    let body;
-    try { body = await request.json(); } catch { return reply(400, { error: 'bad_json' }); }
-    const desc = typeof body.desc === 'string' ? body.desc.trim().slice(0, MAX_DESC) : '';
-    const image = typeof body.image === 'string' ? body.image : '';
-    const device = typeof body.device === 'string' && /^[a-z0-9]{8,40}$/.test(body.device) ? body.device : '';
-    if (!desc && !image) return reply(400, { error: 'empty' });
-    if (image && (image.length > MAX_IMAGE_B64 || !/^[A-Za-z0-9+/=]+$/.test(image))) return reply(413, { error: 'image' });
-
-    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-    const quota = await takeQuota(env, device, ip);
-    if (!quota.ok) return reply(429, { error: 'rate_limited', scope: quota.scope, limit: quota.limit });
-
-    const content = [];
-    if (image) content.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } });
-    content.push({ type: 'text', text: prompt(desc, !!image) });
-
-    // Raw fetch: a Worker pasted into the Cloudflare dashboard has no npm bundler for the SDK.
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'anthropic-beta': 'server-side-fallback-2026-07-01',
-      },
-      body: JSON.stringify({
-        model: env.MODEL || 'claude-opus-5-5',
-        max_tokens: 8000,
-        output_config: { effort: 'low' },
-        fallbacks: 'default',
-        messages: [{ role: 'user', content }],
-      }),
-    });
-    if (!r.ok) return reply(502, { error: 'upstream', status: r.status });
-    const msg = await r.json();
-    if (msg.stop_reason === 'refusal') return reply(422, { error: 'refusal' });
-
-    const text = (msg.content || []).filter(c => c.type === 'text').map(c => c.text).join('');
-    const a = text.indexOf('{'), b = text.lastIndexOf('}');
-    if (a < 0 || b < a) return reply(502, { error: 'parse' });
-    try {
-      const out = JSON.parse(text.slice(a, b + 1));
-      const num = v => Math.max(0, Number(v) || 0);
-      return reply(200, {
-        quota: { left: quota.left, limit: quota.limit },
-        title: String(out.title || '').slice(0, 80),
-        note: String(out.note || '').slice(0, 300),
-        items: (Array.isArray(out.items) ? out.items : []).slice(0, 20).map(x => ({
-          name: String(x.name || '').slice(0, 60), grams: num(x.grams), kcal: num(x.kcal),
-          protein: num(x.protein), fat: num(x.fat), carbs: num(x.carbs),
-        })),
-      });
-    } catch { return reply(502, { error: 'parse' }); }
+    if (request.method === 'POST' && !allowed.includes(origin)) return reply(403, { error: 'origin' });
+    // Any unexpected failure still answers with CORS headers, so the app can show the reason.
+    try { return await handle(request, env, reply); }
+    catch (e) { return reply(500, { error: 'crash', message: String(e && e.message || e).slice(0, 240) }); }
   },
 };
