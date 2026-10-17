@@ -8,7 +8,7 @@
 //           DAILY_PER_IP     requests per network address per day, default 20
 //           DAILY_TOTAL      requests for everyone together per day, default 12
 
-const VERSION = 4;
+const VERSION = 5;
 const DEFAULT_ORIGINS = 'https://tallomovsky-lgtm.github.io';
 const MAX_IMAGE_B64 = 3_000_000; // ~2.2 MB jpeg; the app sends ~100-300 KB
 const MAX_DESC = 600;
@@ -98,8 +98,12 @@ If there is no food, return {"title":"","items":[],"note":"<Hebrew explanation>"
 // Raw fetch: a Worker pasted into the Cloudflare dashboard has no npm bundler for the SDK.
 // The first attempt asks for low effort and server-side refusal fallbacks; if the API rejects
 // the request shape (400 that isn't about credit), it retries once with only the basics.
+// Pasting into the dashboard easily adds spaces, a newline or quotes around the key.
+const apiKey = env => String(env.ANTHROPIC_API_KEY || '').trim().replace(/^["']+|["']+$/g, '').trim();
+const keyFormat = k => (/^sk-ant-[A-Za-z0-9_-]{20,}$/.test(k) ? 'ok' : 'bad');
+
 function callClaude(env, content, basic) {
-  const headers = { 'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' };
+  const headers = { 'content-type': 'application/json', 'x-api-key': apiKey(env), 'anthropic-version': '2023-06-01' };
   const body = { model: env.MODEL || 'claude-opus-5-5', max_tokens: 16000, messages: [{ role: 'user', content }] };
   if (!basic) {
     headers['anthropic-beta'] = 'server-side-fallback-2026-07-01';
@@ -128,13 +132,14 @@ async function handle(request, env, reply) {
   if (request.method === 'GET') {
     const device = new URL(request.url).searchParams.get('device') || '';
     const d = today();
-    return reply(200, { ok: true, service: 'bis', version: VERSION, key: !!env.ANTHROPIC_API_KEY, limits: env.LIMITS ? 'kv' : 'memory',
+    const k = apiKey(env);
+    return reply(200, { ok: true, service: 'bis', version: VERSION, key: !!k, keyFormat: k ? keyFormat(k) : null, keyLength: k.length, limits: env.LIMITS ? 'kv' : 'memory',
       perUser: lim.user, total: lim.total, usedToday: await getCount(env, `${d}:all`),
       userToday: DEVICE_RE.test(device) ? await getCount(env, `${d}:u:${device}`) : null,
       problem: await getProblem(env) });
   }
   if (request.method !== 'POST') return reply(405, { error: 'method' });
-  if (!env.ANTHROPIC_API_KEY) return reply(500, { error: 'no_key' });
+  if (!apiKey(env)) return reply(500, { error: 'no_key' });
 
   let body;
   try { body = await request.json(); } catch { return reply(400, { error: 'bad_json' }); }
