@@ -233,6 +233,12 @@ textarea:focus,.inp:focus{border-color:var(--accent)}
 .confirm .yes{background:var(--danger);color:#fff}
 .confirm .no{background:var(--surface2)}
 .about{font-size:13px;color:var(--muted);line-height:1.6}
+.srvRow{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid var(--line);font-size:14px}
+.srvRow:first-child{border-top:0}
+.srvRow span{color:var(--muted);font-weight:600}
+.srvRow b{font-weight:800;text-align:end}
+.srvRow b.ok{color:var(--down)}
+.srvRow b.bad{color:var(--danger)}
 
 /* tabs */
 .tabs{flex:none;display:flex;align-items:flex-end;border-top:1px solid var(--line);background:var(--surface);padding-block:6px calc(env(safe-area-inset-bottom,0px) + 6px);padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}
@@ -310,6 +316,7 @@ textarea:focus,.inp:focus{border-color:var(--accent)}
         <div class="field">
           <label>ארוחה</label>
           <div class="chips" id="mealType"></div>
+          <span class="hint" id="dayHint" hidden></span>
         </div>
         <button class="btn" id="analyze" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>חשב ערכים</button>
         <div class="status" id="status"></div>
@@ -371,6 +378,13 @@ textarea:focus,.inp:focus{border-color:var(--accent)}
         <div class="card" style="display:flex;flex-direction:column;gap:10px">
           <div class="about">כדי לזהות אוכל מתמונה האפליקציה צריכה מפתח API של Anthropic (Claude). המפתח נשמר רק במכשיר הזה. בלי מפתח, אפשר עדיין להוסיף ארוחות בכתב מתוך מאגר של מאכלים נפוצים.</div>
           <input class="inp" id="sKey" type="password" autocomplete="off" placeholder="sk-ant-..." dir="ltr">
+        </div>
+      </div>
+      <div id="serverBox" hidden>
+        <div class="secHead"><h2>שרת זיהוי תמונות</h2></div>
+        <div class="card" style="display:flex;flex-direction:column;gap:10px">
+          <div id="serverRows"></div>
+          <button class="btn ghost" id="srvCheck" type="button">בדוק שוב</button>
         </div>
       </div>
       <div class="secHead"><h2>נתונים</h2></div>
@@ -483,11 +497,14 @@ let quota=null;try{quota=JSON.parse(localStorage.getItem('bis.quota')||'null')}c
 const viaServer=img=>!!SERVER&&!S.settings.apiKey&&!(sample&&(!img||sampleImages));
 const aiAvailable=img=>(sample&&(!img||sampleImages))||!!SERVER||!!S.settings.apiKey;
 function renderEngine(){
-  const on=(sample&&sampleImages)||!!SERVER||!!S.settings.apiKey;
-  const e=$('#engine');e.classList.toggle('on',on);e.querySelector('span').textContent=on?'זיהוי AI פעיל':(sample?'AI לטקסט':'מצב בסיסי');
+  let on=(sample&&sampleImages)||!!SERVER||!!S.settings.apiKey;
+  const usesServer=viaServer(true);
+  const bad=usesServer&&health&&health.state!=='ok';
+  const e=$('#engine');e.classList.toggle('on',on&&!bad);e.querySelector('span').textContent=bad?'זיהוי AI לא זמין':on?'זיהוי AI פעיל':(sample?'AI לטקסט':'מצב בסיסי');
   $('#keyBox').hidden=!!((sample&&sampleImages)||SERVER);
   $('#shotSub').textContent=on?'או בחר תמונה שכבר צילמת':'זיהוי תמונה דורש מפתח AI ביעדים';
-  if(SERVER&&quota&&quota.date===dkey())$('#shotSub').textContent=quota.left>0?`נשארו לך היום ${quota.left} זיהויי תמונה`:'נגמרו זיהויי התמונה להיום. אפשר עדיין להוסיף בכתב';
+  if(bad)$('#shotSub').textContent=HEALTH_MSG[health.state];
+  else if(usesServer&&quota&&quota.date===dkey())$('#shotSub').textContent=quota.left>0?`נשארו לך היום ${quota.left} זיהויי תמונה`:'נגמרו זיהויי התמונה להיום. אפשר עדיין להוסיף בכתב';
 }
 
 function promptFor(desc,hasImg){
@@ -502,6 +519,52 @@ function parseJSON(t){const a=t.indexOf('{'),b=t.lastIndexOf('}');if(a<0||b<a)th
 async function blobToB64(b){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=rej;r.readAsDataURL(b)})}
 
 function saveQuota(){try{localStorage.setItem('bis.quota',JSON.stringify(quota))}catch(e){}renderEngine()}
+const SERVER_MSG={
+  no_key:'בשרת הזיהוי חסר מפתח API.',
+  no_credit:'נגמר הקרדיט בחשבון Anthropic, ולכן הזיהוי מתמונה לא זמין כרגע.',
+  bad_key:'מפתח ה-API של שרת הזיהוי לא תקין.',
+  forbidden:'חשבון Anthropic חסם את הבקשה.',
+  model:'המודל שהוגדר בשרת לא קיים.',
+  busy:'Claude עמוס כרגע. נסה שוב בעוד דקה.',
+  overloaded:'Claude עמוס כרגע. נסה שוב בעוד דקה.',
+  origin:'שרת הזיהוי לא מכיר את הכתובת שממנה האפליקציה נפתחה.',
+  image:'התמונה לא תקינה או גדולה מדי. נסה תמונה אחרת.',
+  parse:'Claude החזיר תשובה לא ברורה. נסה שוב.',
+  refusal:'Claude לא ניתח את התמונה הזו. נסה תמונה אחרת.',
+  crash:'תקלה בשרת הזיהוי.',
+  bad_json:'הבקשה לשרת הזיהוי לא תקינה.',
+  old:'שרת הזיהוי מריץ גרסה ישנה של הקוד וצריך לעדכן אותו.',
+  offline:'לא הצלחתי להגיע לשרת הזיהוי. בדוק חיבור לאינטרנט, או שהשרת לא זמין כרגע.',
+  timeout:'הזיהוי לקח יותר מדי זמן. נסה שוב.'
+};
+function fail(code,status,detail){const e=new Error(code);e.server=code;e.status=status||0;e.detail=detail||'';return e}
+function errText(e){
+  if(e&&e.code==='rate_limited')return e.scope==='all'?'מכסת זיהויי התמונה של היום נגמרה. מחר זה מתאפס.':e.scope==='user'?`השתמשת היום בכל ${e.limit} זיהויי התמונה. מחר זה מתאפס.`:'יותר מדי בקשות. נסה שוב בעוד דקה.';
+  if(e&&e.code==='not_granted')return 'לא ניתנה הרשאה לשימוש ב-Claude.';
+  if(e&&e.server==='upstream')return `שגיאה מ-Claude (${e.status})${e.detail?': '+e.detail:''}`;
+  if(e&&e.server)return SERVER_MSG[e.server]||`הזיהוי נכשל (${e.server}${e.status?' '+e.status:''}).`;
+  return 'הזיהוי נכשל. נסה שוב.';
+}
+async function fetchT(url,opts,ms){
+  const ctl=new AbortController();const tm=setTimeout(()=>ctl.abort(),ms);
+  try{return await fetch(url,{...opts,signal:ctl.signal})}
+  catch(e){throw fail(e&&e.name==='AbortError'?'timeout':'offline')}
+  finally{clearTimeout(tm)}
+}
+async function serverAnalyze(desc,blob){
+  const body=JSON.stringify({desc,device:DEVICE,image:blob?await blobToB64(blob):undefined});
+  const r=await fetchT(SERVER+'/analyze',{method:'POST',headers:{'content-type':'application/json'},body},90000);
+  let j=null;try{j=await r.json()}catch(e){}
+  if(!j||typeof j!=='object')throw fail('old',r.status);
+  if(!r.ok){
+    const e=fail(j.error||'upstream',j.status||r.status,j.message);
+    if(r.status===429){e.code='rate_limited';e.scope=j.scope;e.limit=j.limit;if(j.scope==='user'){quota={date:dkey(),left:0,limit:j.limit};saveQuota()}}
+    throw e;
+  }
+  if(j.quota){quota={date:dkey(),left:j.quota.left,limit:j.quota.limit};saveQuota()}
+  if(health&&health.state!=='ok')checkServer();
+  return j;
+}
 async function aiAnalyze(desc,blob){
   const prompt=promptFor(desc,!!blob);
   if(sample&&(!blob||sampleImages)){
@@ -509,22 +572,51 @@ async function aiAnalyze(desc,blob){
     const out=await sample(prompt,opts);
     return parseJSON(out.text);
   }
-  if(SERVER&&!S.settings.apiKey){
-    const r=await fetch(SERVER+'/analyze',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({desc,device:DEVICE,image:blob?await blobToB64(blob):undefined})});
-    if(!r.ok){const e=new Error('server');e.status=r.status;if(r.status===429){const j=await r.json().catch(()=>({}));e.code='rate_limited';e.scope=j.scope;e.limit=j.limit;if(j.scope==='user'){quota={date:dkey(),left:0,limit:j.limit};saveQuota()}}throw e}
-    const j=await r.json();
-    if(j.quota){quota={date:dkey(),left:j.quota.left,limit:j.quota.limit};saveQuota()}
-    return j;
-  }
+  if(SERVER&&!S.settings.apiKey)return serverAnalyze(desc,blob);
+  // the viewer's own API key, straight from the browser
   const content=[];
   if(blob)content.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:await blobToB64(blob)}});
   content.push({type:'text',text:prompt});
-  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':S.settings.apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-5-5',max_tokens:1500,messages:[{role:'user',content}]})});
-  if(!r.ok){const e=new Error('http');e.status=r.status;throw e}
-  const j=await r.json();
-  return parseJSON((j.content||[]).filter(c=>c.type==='text').map(c=>c.text).join(''));
+  const r=await fetchT('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':S.settings.apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-opus-5-5',max_tokens:16000,output_config:{effort:'low'},messages:[{role:'user',content}]})},90000);
+  const j=await r.json().catch(()=>null);
+  if(!r.ok){
+    const m=String(j&&j.error&&j.error.message||'');
+    if(/credit balance|purchase credits/i.test(m))throw fail('no_credit',r.status);
+    if(r.status===401)throw Object.assign(new Error('key'),{status:401});
+    throw fail(r.status===529||r.status>=500?'overloaded':r.status===429?'busy':'upstream',r.status,m.slice(0,200));
+  }
+  if(j&&j.stop_reason==='refusal')throw fail('refusal');
+  try{return parseJSON(((j&&j.content)||[]).filter(c=>c.type==='text').map(c=>c.text).join(''))}catch(e){throw fail('parse')}
 }
 
+/* ---------- server health (no Claude call, costs nothing) ---------- */
+let health=null,healthAt=0;
+const HEALTH_MSG={down:'שרת הזיהוי לא זמין כרגע. אפשר להוסיף בכתב.',nokey:'בשרת הזיהוי חסר מפתח API.',old:'שרת הזיהוי צריך עדכון קוד.'};
+async function checkServer(){
+  if(!SERVER)return;
+  healthAt=Date.now();
+  try{
+    const r=await fetchT(SERVER+'/?t='+Date.now(),{cache:'no-store'},10000);
+    let j=null;try{j=await r.json()}catch(e){}
+    health=!j||j.service!=='bis'||!j.version?{state:'old',j}:!j.key?{state:'nokey',j}:{state:'ok',j};
+  }catch(e){health={state:'down'}}
+  renderEngine();renderServerBox();
+}
+function renderServerBox(){
+  const box=$('#serverBox');if(!box)return;
+  box.hidden=!SERVER;if(!SERVER)return;
+  const h=health,j=h&&h.j;
+  const row=(k,v,cls)=>`<div class="srvRow"><span>${k}</span><b class="${cls||''}">${v}</b></div>`;
+  let html=row('מצב',!h?'בודק…':h.state==='ok'?'תקין ✓':HEALTH_MSG[h.state],!h?'':h.state==='ok'?'ok':'bad');
+  if(j&&j.service==='bis'){
+    html+=row('מפתח API',j.key?'מוגדר ✓':'חסר',j.key?'ok':'bad');
+    html+=row('מונים',j.limits==='kv'?'קבועים (KV) ✓':'זמניים, חסר חיבור KV',j.limits==='kv'?'ok':'bad');
+    html+=row('נוצלו היום',`<span class="num">${j.usedToday??'–'} מתוך ${j.total??'–'}</span>`);
+    html+=row('לכל טלפון ביום',`<span class="num">${j.perUser??'–'}</span>`);
+    html+=row('גרסת שרת',`<span class="num">${j.version||'ישנה'}</span>`,j.version?'':'bad');
+  }
+  $('#serverRows').innerHTML=html;
+}
 /* local food table — per 100 g: kcal, protein, fat, carbs; u = grams per unit/slice/serving */
 const FOODS=[
  [['ביצה','ביצים','ביצה קשה','חביתה'],155,13,11,1.1,55],
@@ -605,7 +697,8 @@ function show(v){
   view=v;document.querySelectorAll('.view').forEach(el=>el.hidden=el.id!=='v-'+v);
   document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
   if(v==='weight')renderWeight();
-  if(v==='settings')renderSettings();
+  if(v==='settings'){renderSettings();renderServerBox();if(SERVER&&Date.now()-healthAt>5000)checkServer()}
+  if(v==='add'){const h=$('#dayHint'),tk=dkey();h.hidden=day===tk;if(day!==tk)h.textContent=`הארוחה תירשם ל${day===addDays(tk,-1)?'אתמול':fmtDate(day)} (היום שנבחר במסך הראשי)`}
   try{localStorage.setItem('bis.view',v)}catch(e){}
 }
 $('#tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)});
@@ -626,7 +719,7 @@ function renderToday(){
   $('#plateC').classList.toggle('over',left<0);
   $('#kEaten').textContent=r0(t.kcal).toLocaleString('he-IL');$('#kGoal').textContent=g.kcal.toLocaleString('he-IL');
   [['P','protein'],['F','fat'],['C','carbs']].forEach(([k,f])=>{
-    $('#m'+k).textContent=r0(t[f]);$('#g'+k).textContent=g[f];$('#b'+k).style.width=Math.min(100,t[f]/g[f]*100)+'%';
+    $('#m'+k).textContent=r0(t[f]);$('#g'+k).textContent=g[f];$('#b'+k).style.width=(g[f]>0?Math.min(100,t[f]/g[f]*100):0)+'%';
   });
   // plate arcs: each macro's share of calories eaten, scaled to the goal
   const C=2*Math.PI*62,fill=Math.min(1,t.kcal/g.kcal),kc=[t.protein*4,t.fat*9,t.carbs*4],ks=kc.reduce((a,b)=>a+b,0)||1;
@@ -659,9 +752,9 @@ $('#desc').addEventListener('input',updAnalyze);
 const onPhoto=async e=>{
   const f=e.target.files&&e.target.files[0];if(!f)return;
   try{
-    const img=await loadImg(f);photoBlob=await drawTo(img,1280,'image/jpeg',0.85).blob();photoThumb=thumbOf(img);
+    const img=await loadImg(f);const bl=await drawTo(img,1024,'image/jpeg',0.82).blob();if(!bl)throw new Error('blob');photoBlob=bl;photoThumb=thumbOf(img);
     const shot=$('#shot');shot.classList.add('has');
-    shot.querySelectorAll('img,.clear').forEach(x=>x.remove());
+    shot.querySelectorAll('img,.clear').forEach(x=>{if(x.src)URL.revokeObjectURL(x.src);x.remove()});
     const im=document.createElement('img');im.src=URL.createObjectURL(photoBlob);im.alt='התמונה שבחרת';shot.appendChild(im);
     const cl=document.createElement('button');cl.className='clear';cl.type='button';cl.textContent='הסר';cl.onclick=ev=>{ev.preventDefault();clearPhoto()};shot.appendChild(cl);
     setStatus(aiAvailable(true)?'':'בלי מפתח AI אפשר לחשב רק לפי תיאור בכתב. הוסף מפתח במסך יעדים.',!aiAvailable(true));
@@ -670,7 +763,7 @@ const onPhoto=async e=>{
 };
 ['#photoCam','#photoGal'].forEach(id=>$(id).addEventListener('change',onPhoto));
 document.querySelectorAll('.shotBtn').forEach(l=>l.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('#'+l.htmlFor).click()}}));
-function clearPhoto(){photoBlob=null;photoThumb=null;const s=$('#shot');s.classList.remove('has');s.querySelectorAll('img,.clear').forEach(x=>x.remove());updAnalyze();setStatus('')}
+function clearPhoto(){photoBlob=null;photoThumb=null;const s=$('#shot');s.classList.remove('has');s.querySelectorAll('img,.clear').forEach(x=>{if(x.src)URL.revokeObjectURL(x.src);x.remove()});updAnalyze();setStatus('')}
 function setStatus(m,err,busy){const s=$('#status');s.className='status'+(err?' err':'');s.innerHTML=busy?`<span style="display:inline-flex;gap:8px;align-items:center"><span class="spin"></span>${esc(m)}</span>`:esc(m)}
 
 $('#analyze').onclick=async()=>{
@@ -680,10 +773,10 @@ $('#analyze').onclick=async()=>{
   let res=null;
   try{
     if(!photoBlob&&desc&&viaServer(false)){const loc=localAnalyze(desc);if(loc.items.length)res=loc}
-    if(!res&&aiAvailable(!!photoBlob)){setStatus(photoBlob?'מזהה את האוכל בתמונה…':'מחשב ערכים…',false,true);res=await aiAnalyze(desc,aiAvailable(true)?photoBlob:null)}
+    if(!res&&aiAvailable(!!photoBlob)){setStatus(photoBlob?'מזהה את האוכל בתמונה… זה לוקח עד חצי דקה':'מחשב ערכים…',false,true);res=await aiAnalyze(desc,aiAvailable(true)?photoBlob:null)}
   }catch(e){
-    const msg=e&&e.status===401?'מפתח ה-API לא תקין. בדוק אותו במסך יעדים.':e&&e.code==='not_granted'?'לא ניתנה הרשאה לשימוש ב-Claude.':e&&e.code==='rate_limited'?(e.scope==='all'?'מכסת זיהויי התמונה של היום נגמרה. מחר זה מתאפס.':e.scope==='user'?`השתמשת היום בכל ${e.limit} זיהויי התמונה. מחר זה מתאפס.`:'יותר מדי בקשות. נסה שוב בעוד דקה.'):'הזיהוי נכשל. בדוק חיבור לאינטרנט ונסה שוב.';
-    if(!desc){setStatus(msg+(e&&e.code==='rate_limited'?' בינתיים אפשר לכתוב מה אכלת.':''),true);updAnalyze();return}
+    const msg=e&&e.status===401&&!e.server?'מפתח ה-API לא תקין. בדוק אותו במסך יעדים.':errText(e);
+    if(!desc){setStatus(msg+(photoBlob?' בינתיים אפשר לכתוב מה אכלת.':''),true);updAnalyze();return}
     toast(msg+' מחשב לפי מה שכתבת.');
   }
   if(!res||!res.items||!res.items.length){
@@ -720,6 +813,7 @@ $('#items').addEventListener('input',e=>{
 $('#resTitle').addEventListener('input',e=>{if(pending)pending.title=e.target.value});
 $('#discard').onclick=()=>{pending=null;renderResult()};
 $('#save').onclick=()=>{
+  if(!pending)return;
   leaveDemo();
   const items=pending.items.map(({base,...x})=>x);
   S.meals.push({id:uid(),date:day>dkey()?dkey():day,ts:Date.now(),meal:mealType,name:pending.title.trim()||'ארוחה',items,thumb:photoThumb||undefined,...sum(items)});
@@ -730,7 +824,7 @@ $('#save').onclick=()=>{
 /* ---------- UI: weight ---------- */
 let range=90;
 $('#range').onclick=e=>{const b=e.target.closest('button');if(!b)return;range=+b.dataset.r;document.querySelectorAll('#range button').forEach(x=>x.classList.toggle('on',x===b));renderWeight()};
-$('#wDate').value=dkey();
+$('#wDate').value=dkey();$('#wDate').max=dkey();
 $('#wForm').addEventListener('submit',e=>{
   e.preventDefault();const kg=r1(parseFloat($('#wKg').value)),date=$('#wDate').value||dkey();
   if(!(kg>=20&&kg<=400))return;
@@ -803,7 +897,7 @@ function drawChart(P,target){
   const pick=ev=>{
     const b=svg.getBoundingClientRect(),x=(ev.clientX-b.left)/b.width*Wd;
     let bi=0;pts.forEach((p,i)=>{if(Math.abs(p[0]-x)<Math.abs(pts[bi][0]-x))bi=i});
-    const p=pts[bi];cur.hidden=false;cur.querySelector('line').setAttribute('x1',p[0]);cur.querySelector('line').setAttribute('x2',p[0]);
+    const p=pts[bi];cur.removeAttribute('hidden');cur.querySelector('line').setAttribute('x1',p[0]);cur.querySelector('line').setAttribute('x2',p[0]);
     cur.querySelector('circle').setAttribute('cx',p[0]);cur.querySelector('circle').setAttribute('cy',p[1]);
     const ch=bi?r1(P[bi].kg-P[bi-1].kg):null;
     $('#tip').innerHTML=`${fmtDate(P[bi].date)} · <b class="num">${P[bi].kg.toFixed(1)} ק״ג</b>${ch?` <span class="num" style="color:var(--${ch<0?'down':'up'})">(${ch>0?'+':''}${ch.toFixed(1)})</span>`:''}`;
@@ -824,9 +918,18 @@ $('#wipeNo').onclick=()=>{$('#wipeConfirm').hidden=true};
 $('#wipeYes').onclick=()=>{const key=S.settings.apiKey;S={...DEF,settings:{...DEF.settings,apiKey:key},meals:[],weights:[]};persist();$('#wipeConfirm').hidden=true;renderAll();toast('כל הנתונים נמחקו')};
 
 function renderAll(){renderToday();renderMealType();renderEngine();if(view==='weight')renderWeight();if(view==='settings')renderSettings()}
+$('#srvCheck').onclick=()=>{health=null;renderServerBox();checkServer()};
+let lastToday=dkey();
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden)return;
+  const t=dkey();
+  if(t!==lastToday){if(day===lastToday)day=t;lastToday=t;if(!pending)mealType=mealByHour();$('#wDate').value=t;$('#wDate').max=t;renderAll()}
+  if(SERVER&&Date.now()-healthAt>60000)checkServer();
+});
 renderAll();
 try{const v=localStorage.getItem('bis.view');if(v&&$('#v-'+v))show(v)}catch(e){}
 initRuntime();
+checkServer();
 })();
 </script>
 <script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));</script>
