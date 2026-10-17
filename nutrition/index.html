@@ -266,7 +266,7 @@ textarea:focus,.inp:focus{border-color:var(--accent)}
   <main class="views">
     <!-- TODAY -->
     <section class="view" id="v-today">
-      <div class="demo" id="demoBar" hidden><span><b>נתוני דוגמה.</b> הארוחה או השקילה הראשונה שלך ימחקו אותם.</span><button id="clearDemo">התחל מאפס</button></div>
+      <div class="demo" id="demoBar" hidden><span><b>נתוני דוגמה.</b> הארוחה או השקילה הראשונה שלך ימחקו אותם.</span><button class="clearDemo">התחל מאפס</button></div>
       <div class="dayNav">
         <button id="dayPrev" aria-label="יום קודם"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></button>
         <div><b id="dayTitle">היום</b><small id="dayDate"></small></div>
@@ -337,6 +337,7 @@ textarea:focus,.inp:focus{border-color:var(--accent)}
 
     <!-- WEIGHT -->
     <section class="view" id="v-weight" hidden>
+      <div class="demo" id="demoBarW" hidden><span><b>נתוני דוגמה.</b> השקילה הראשונה שלך תמחק אותם.</span><button class="clearDemo">התחל מאפס</button></div>
       <div class="card" style="display:flex;flex-direction:column;gap:14px">
         <div class="wHead">
           <div class="wNow"><small id="wNowLbl">משקל נוכחי</small><b class="num" id="wNow">–</b></div>
@@ -384,6 +385,7 @@ textarea:focus,.inp:focus{border-color:var(--accent)}
         <div class="secHead"><h2>שרת זיהוי תמונות</h2></div>
         <div class="card" style="display:flex;flex-direction:column;gap:10px">
           <div id="serverRows"></div>
+          <p class="about" style="margin:0">נספרים רק זיהויים ש-Claude ענה עליהם. המונים מתאפסים בחצות.</p>
           <button class="btn ghost" id="srvCheck" type="button">בדוק שוב</button>
         </div>
       </div>
@@ -423,10 +425,14 @@ const HE_DAYS=['ראשון','שני','שלישי','רביעי','חמישי','ש�
 const fmtDate=k=>{const d=parseKey(k);return `יום ${HE_DAYS[d.getDay()]}, ${d.getDate()}.${d.getMonth()+1}`};
 
 /* ---------- state ---------- */
-const DEF={v:1,demo:false,updatedAt:0,settings:{kcal:2000,protein:140,fat:65,carbs:220,target:null,apiKey:''},meals:[],weights:[]};
+const DEF={v:1,mig1:true,demo:false,updatedAt:0,settings:{kcal:2000,protein:140,fat:65,carbs:220,target:null,apiKey:''},meals:[],weights:[]};
 let S=load();
 function load(){
-  try{const j=JSON.parse(localStorage.getItem(LS)||'null');if(j&&j.v===1)return {...DEF,...j,settings:{...DEF.settings,...j.settings}}}catch(e){}
+  try{const j=JSON.parse(localStorage.getItem(LS)||'null');if(j&&j.v===1){
+    const st={...DEF,...j,settings:{...DEF.settings,...j.settings}};
+    // one-time cleanup: early versions kept the demo's 76 kg goal after leaving the demo
+    if(!j.mig1&&!j.demo&&st.settings.target===76)st.settings.target=null;
+    return st}}catch(e){}
   return demoState();
 }
 function persist(touch=true){
@@ -437,10 +443,10 @@ function persist(touch=true){
   }
   if(touch&&!S.demo)queueCloud();
 }
-function leaveDemo(){if(S.demo){const keep=S.settings;S={...DEF,settings:{...keep},meals:[],weights:[]}}}
+function leaveDemo(){if(S.demo){const keep={...S.settings};if(S.demoTarget)keep.target=null;S={...DEF,settings:keep,meals:[],weights:[]}}}
 
 function demoState(){
-  const t=dkey(),st={...DEF,demo:true,settings:{...DEF.settings,target:76},meals:[],weights:[]};
+  const t=dkey(),st={...DEF,demo:true,demoTarget:true,settings:{...DEF.settings,target:76},meals:[],weights:[]};
   let w=82.6;
   for(let i=84;i>=0;i-=1){
     if(i%2&&i%7)continue;
@@ -503,7 +509,7 @@ function renderEngine(){
   const e=$('#engine');e.classList.toggle('on',on&&!bad);e.querySelector('span').textContent=bad?'זיהוי AI לא זמין':on?'זיהוי AI פעיל':(sample?'AI לטקסט':'מצב בסיסי');
   $('#keyBox').hidden=!!((sample&&sampleImages)||SERVER);
   $('#shotSub').textContent=on?'או בחר תמונה שכבר צילמת':'זיהוי תמונה דורש מפתח AI ביעדים';
-  if(bad)$('#shotSub').textContent=HEALTH_MSG[health.state];
+  if(bad)$('#shotSub').textContent=healthMsg(health);
   else if(usesServer&&quota&&quota.date===dkey())$('#shotSub').textContent=quota.left>0?`נשארו לך היום ${quota.left} זיהויי תמונה`:'נגמרו זיהויי התמונה להיום. אפשר עדיין להוסיף בכתב';
 }
 
@@ -558,6 +564,7 @@ async function serverAnalyze(desc,blob){
   if(!j||typeof j!=='object')throw fail('old',r.status);
   if(!r.ok){
     const e=fail(j.error||'upstream',j.status||r.status,j.message);
+    if(['no_credit','bad_key','forbidden','model','no_key','old'].includes(e.server))checkServer();
     if(r.status===429){e.code='rate_limited';e.scope=j.scope;e.limit=j.limit;if(j.scope==='user'){quota={date:dkey(),left:0,limit:j.limit};saveQuota()}}
     throw e;
   }
@@ -592,13 +599,15 @@ async function aiAnalyze(desc,blob){
 /* ---------- server health (no Claude call, costs nothing) ---------- */
 let health=null,healthAt=0;
 const HEALTH_MSG={down:'שרת הזיהוי לא זמין כרגע. אפשר להוסיף בכתב.',nokey:'בשרת הזיהוי חסר מפתח API.',old:'שרת הזיהוי צריך עדכון קוד.'};
+const healthMsg=h=>h.state==='problem'?(SERVER_MSG[h.code]||'יש תקלה בחשבון Anthropic.'):HEALTH_MSG[h.state];
 async function checkServer(){
   if(!SERVER)return;
   healthAt=Date.now();
   try{
-    const r=await fetchT(SERVER+'/?t='+Date.now(),{cache:'no-store'},10000);
+    const r=await fetchT(SERVER+'/?device='+DEVICE+'&t='+Date.now(),{cache:'no-store'},10000);
     let j=null;try{j=await r.json()}catch(e){}
-    health=!j||j.service!=='bis'||!j.version?{state:'old',j}:!j.key?{state:'nokey',j}:{state:'ok',j};
+    health=!j||j.service!=='bis'||!j.version?{state:'old',j}:!j.key?{state:'nokey',j}:j.problem?{state:'problem',code:j.problem.code,j}:{state:'ok',j};
+    if(j&&j.userToday!=null&&j.perUser){quota={date:dkey(),left:Math.max(0,Math.min(j.perUser-j.userToday,j.total-j.usedToday)),limit:j.perUser};try{localStorage.setItem('bis.quota',JSON.stringify(quota))}catch(e){}}
   }catch(e){health={state:'down'}}
   renderEngine();renderServerBox();
 }
@@ -607,12 +616,13 @@ function renderServerBox(){
   box.hidden=!SERVER;if(!SERVER)return;
   const h=health,j=h&&h.j;
   const row=(k,v,cls)=>`<div class="srvRow"><span>${k}</span><b class="${cls||''}">${v}</b></div>`;
-  let html=row('מצב',!h?'בודק…':h.state==='ok'?'תקין ✓':HEALTH_MSG[h.state],!h?'':h.state==='ok'?'ok':'bad');
+  let html=row('מצב',!h?'בודק…':h.state==='ok'?'תקין ✓':healthMsg(h),!h?'':h.state==='ok'?'ok':'bad');
   if(j&&j.service==='bis'){
     html+=row('מפתח API',j.key?'מוגדר ✓':'חסר',j.key?'ok':'bad');
     html+=row('מונים',j.limits==='kv'?'קבועים (KV) ✓':'זמניים, חסר חיבור KV',j.limits==='kv'?'ok':'bad');
-    html+=row('נוצלו היום',`<span class="num">${j.usedToday??'–'} מתוך ${j.total??'–'}</span>`);
-    html+=row('לכל טלפון ביום',`<span class="num">${j.perUser??'–'}</span>`);
+    if(j.userToday!=null)html+=row('הזיהויים שלך היום',`<span class="num">${j.userToday} מתוך ${j.perUser}</span>`);
+    else html+=row('לכל טלפון ביום',`<span class="num">${j.perUser??'–'}</span>`);
+    html+=row('כל המשתמשים היום',`<span class="num">${j.usedToday??'–'} מתוך ${j.total??'–'}</span>`);
     html+=row('גרסת שרת',`<span class="num">${j.version||'ישנה'}</span>`,j.version?'':'bad');
   }
   $('#serverRows').innerHTML=html;
@@ -740,7 +750,7 @@ function renderToday(){
 $('#meals').addEventListener('click',e=>{const b=e.target.closest('[data-del]');if(!b)return;S.meals=S.meals.filter(m=>m.id!==b.dataset.del);persist();renderToday();toast('הארוחה נמחקה')});
 $('#dayPrev').onclick=()=>{day=addDays(day,-1);renderToday()};
 $('#dayNext').onclick=()=>{if(day<dkey()){day=addDays(day,1);renderToday()}};
-$('#clearDemo').onclick=()=>{leaveDemo();persist();renderAll();toast('מתחילים מאפס')};
+document.querySelectorAll('.clearDemo').forEach(b=>b.onclick=()=>{leaveDemo();persist();renderAll();if(view==='weight')renderWeight();toast('מתחילים מאפס')});
 
 /* ---------- UI: add ---------- */
 let photoBlob=null,photoThumb=null,mealType=mealByHour(),pending=null;
@@ -834,6 +844,7 @@ $('#wForm').addEventListener('submit',e=>{
 $('#wList').addEventListener('click',e=>{const b=e.target.closest('[data-wd]');if(!b)return;S.weights=S.weights.filter(w=>w.date!==b.dataset.wd);persist();renderWeight()});
 
 function renderWeight(){
+  $('#demoBarW').hidden=!S.demo;
   const W=S.weights.slice().sort((a,b)=>a.date<b.date?-1:1);
   const target=S.settings.target;
   $('#wCount').textContent=W.length?`${W.length} שקילות`:'';
@@ -911,7 +922,7 @@ function renderSettings(){
   SETS.forEach(([s,k])=>$(s).value=S.settings[k]);$('#sT').value=S.settings.target||'';$('#sKey').value=S.settings.apiKey||'';
 }
 SETS.forEach(([s,k,mn,mx])=>$(s).addEventListener('change',e=>{const v=Math.round(+e.target.value);if(v>=mn&&v<=mx){S.settings[k]=v;persist();renderToday();toast('היעד עודכן')}else renderSettings()}));
-$('#sT').addEventListener('change',e=>{const v=parseFloat(e.target.value);S.settings.target=v>=20&&v<=400?r1(v):null;persist();toast('משקל היעד עודכן')});
+$('#sT').addEventListener('change',e=>{S.demoTarget=false;const v=parseFloat(e.target.value);S.settings.target=v>=20&&v<=400?r1(v):null;persist();toast('משקל היעד עודכן')});
 $('#sKey').addEventListener('change',e=>{S.settings.apiKey=e.target.value.trim();persist(false);renderEngine();toast(S.settings.apiKey?'המפתח נשמר במכשיר':'המפתח הוסר')});
 $('#wipe').onclick=()=>{$('#wipeConfirm').hidden=false};
 $('#wipeNo').onclick=()=>{$('#wipeConfirm').hidden=true};

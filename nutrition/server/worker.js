@@ -8,7 +8,7 @@
 //           DAILY_PER_IP     requests per network address per day, default 20
 //           DAILY_TOTAL      requests for everyone together per day, default 12
 
-const VERSION = 3;
+const VERSION = 4;
 const DEFAULT_ORIGINS = 'https://tallomovsky-lgtm.github.io';
 const MAX_IMAGE_B64 = 3_000_000; // ~2.2 MB jpeg; the app sends ~100-300 KB
 const MAX_DESC = 600;
@@ -18,7 +18,31 @@ const MAX_DESC = 600;
 // memory and only slow abuse down. The prepaid credit in the Anthropic console is the
 // hard ceiling either way.
 const mem = new Map();
-const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' });
+// 'q4:' namespace: counters from older versions (which counted failed calls) are left behind
+const today = () => 'q4:' + new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' });
+const DEVICE_RE = /^[a-z0-9]{8,40}$/;
+
+// Account-level problems (no credit, bad key) are remembered for 30 minutes so the app can say
+// so before anyone wastes a photo; the next successful call clears it.
+const PROBLEM_KEY = 'status:problem';
+const ACCOUNT_PROBLEMS = ['no_credit', 'bad_key', 'forbidden', 'model'];
+async function getProblem(env) {
+  try {
+    const v = env.LIMITS ? await env.LIMITS.get(PROBLEM_KEY) : mem.get(PROBLEM_KEY);
+    const p = v ? JSON.parse(v) : null;
+    return p && Date.now() - p.at < 1800_000 ? p : null;
+  } catch { return null; }
+}
+async function setProblem(env, code) {
+  const v = JSON.stringify({ code, at: Date.now() });
+  try { env.LIMITS ? await env.LIMITS.put(PROBLEM_KEY, v, { expirationTtl: 1800 }) : mem.set(PROBLEM_KEY, v); } catch { /* best effort */ }
+}
+async function clearProblem(env) {
+  try {
+    if (env.LIMITS) { if (await env.LIMITS.get(PROBLEM_KEY)) await env.LIMITS.delete(PROBLEM_KEY); }
+    else mem.delete(PROBLEM_KEY);
+  } catch { /* best effort */ }
+}
 async function getCount(env, key) {
   if (env.LIMITS) return Number(await env.LIMITS.get(key)) || 0;
   return mem.get(key) || 0;
@@ -35,7 +59,9 @@ function limitsOf(env) {
     total: Number(env.DAILY_TOTAL) || 12,
   };
 }
-// Reserves one request before calling Claude; released again if Claude fails.
+// Reserves one request before calling Claude. Released again when Claude never answered
+// (error status or network failure), because those calls aren't billed. Answers that came back
+// but couldn't be used still count, since they were billed.
 async function takeQuota(env, device, ip) {
   const d = today(), lim = limitsOf(env);
   const keys = [`${d}:all`, `${d}:u:${device || ip}`, `${d}:ip:${ip}`];
@@ -100,8 +126,12 @@ function codeFor(status, err) {
 async function handle(request, env, reply) {
   const lim = limitsOf(env);
   if (request.method === 'GET') {
+    const device = new URL(request.url).searchParams.get('device') || '';
+    const d = today();
     return reply(200, { ok: true, service: 'bis', version: VERSION, key: !!env.ANTHROPIC_API_KEY, limits: env.LIMITS ? 'kv' : 'memory',
-      perUser: lim.user, total: lim.total, usedToday: await getCount(env, `${today()}:all`) });
+      perUser: lim.user, total: lim.total, usedToday: await getCount(env, `${d}:all`),
+      userToday: DEVICE_RE.test(device) ? await getCount(env, `${d}:u:${device}`) : null,
+      problem: await getProblem(env) });
   }
   if (request.method !== 'POST') return reply(405, { error: 'method' });
   if (!env.ANTHROPIC_API_KEY) return reply(500, { error: 'no_key' });
@@ -110,7 +140,7 @@ async function handle(request, env, reply) {
   try { body = await request.json(); } catch { return reply(400, { error: 'bad_json' }); }
   const desc = typeof body.desc === 'string' ? body.desc.trim().slice(0, MAX_DESC) : '';
   const image = typeof body.image === 'string' ? body.image : '';
-  const device = typeof body.device === 'string' && /^[a-z0-9]{8,40}$/.test(body.device) ? body.device : '';
+  const device = typeof body.device === 'string' && DEVICE_RE.test(body.device) ? body.device : '';
   if (!desc && !image) return reply(400, { error: 'empty' });
   // cheap sanity check; scanning the whole base64 string costs CPU time on the free plan
   if (image && (image.length > MAX_IMAGE_B64 || !/^[A-Za-z0-9+/]{16}/.test(image))) return reply(413, { error: 'image' });
@@ -119,8 +149,9 @@ async function handle(request, env, reply) {
   const quota = await takeQuota(env, device, ip);
   if (!quota.ok) return reply(429, { error: 'rate_limited', scope: quota.scope, limit: quota.limit });
 
-  try { return await analyze(env, content(image, desc), quota, reply); }
-  catch (e) { await releaseQuota(env, quota.keys); throw e; }
+  const state = { answered: false };
+  try { return await analyze(env, content(image, desc), quota, reply, state); }
+  catch (e) { if (!state.answered) await releaseQuota(env, quota.keys); throw e; }
 }
 
 function content(image, desc) {
@@ -130,7 +161,7 @@ function content(image, desc) {
   return c;
 }
 
-async function analyze(env, content, quota, reply) {
+async function analyze(env, content, quota, reply, state) {
   let r = await callClaude(env, content, false);
   if (r.status === 400) {
     const err = await errorOf(r.clone());
@@ -139,17 +170,21 @@ async function analyze(env, content, quota, reply) {
   if (r.status === 529 || r.status === 500 || r.status === 503) { await sleep(1500); r = await callClaude(env, content, true); }
   if (!r.ok) {
     const err = await errorOf(r);
+    const code = codeFor(r.status, err);
     await releaseQuota(env, quota.keys);
-    return reply(502, { error: codeFor(r.status, err), status: r.status, message: err.message });
+    if (ACCOUNT_PROBLEMS.includes(code)) await setProblem(env, code);
+    return reply(502, { error: code, status: r.status, message: err.message });
   }
+  state.answered = true;
+  await clearProblem(env);
 
   const msg = await r.json();
-  if (msg.stop_reason === 'refusal') { await releaseQuota(env, quota.keys); return reply(422, { error: 'refusal' }); }
+  if (msg.stop_reason === 'refusal') return reply(422, { error: 'refusal' });
   const text = (msg.content || []).filter(c => c.type === 'text').map(c => c.text).join('');
   const a = text.indexOf('{'), b = text.lastIndexOf('}');
   let out = null;
   if (a >= 0 && b > a) { try { out = JSON.parse(text.slice(a, b + 1)); } catch { out = null; } }
-  if (!out) { await releaseQuota(env, quota.keys); return reply(502, { error: 'parse', stop: msg.stop_reason || '' }); }
+  if (!out) return reply(502, { error: 'parse', stop: msg.stop_reason || '' });
   const num = v => Math.max(0, Number(v) || 0);
   return reply(200, {
     quota: { left: quota.left, limit: quota.limit },
