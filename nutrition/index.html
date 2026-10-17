@@ -158,6 +158,7 @@ textarea:focus,.inp:focus{border-color:var(--accent)}
 .row2>*{flex:1}
 .status{font-size:13.5px;color:var(--muted);text-align:center;min-height:20px}
 .status.err{color:var(--danger);font-weight:600}
+.status.ok{color:var(--down);font-weight:700}
 .spin{width:18px;height:18px;border-radius:50%;border:2.5px solid currentColor;border-top-color:transparent;animation:sp .8s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
 
@@ -233,6 +234,11 @@ textarea:focus,.inp:focus{border-color:var(--accent)}
 .confirm .yes{background:var(--danger);color:#fff}
 .confirm .no{background:var(--surface2)}
 .about{font-size:13px;color:var(--muted);line-height:1.6}
+.owner{border-top:1px solid var(--line);padding-top:10px}
+.owner summary{cursor:pointer;font-weight:800;font-size:14.5px;color:var(--accent);padding:4px 0}
+.ownerIn{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.ownerIn .lbl{font-size:13px;font-weight:700;color:var(--ink2)}
+.ownerIn .inp{height:46px;padding:0 12px}
 .srvRow{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid var(--line);font-size:14px}
 .srvRow:first-child{border-top:0}
 .srvRow span{color:var(--muted);font-weight:600}
@@ -386,6 +392,17 @@ textarea:focus,.inp:focus{border-color:var(--accent)}
         <div class="card" style="display:flex;flex-direction:column;gap:10px">
           <div id="serverRows"></div>
           <p class="about" style="margin:0">נספרים רק זיהויים ש-Claude ענה עליהם. המונים מתאפסים בחצות.</p>
+          <details class="owner" id="ownerBox" hidden>
+            <summary>לבעלים: הגדרת מפתח API</summary>
+            <div class="ownerIn">
+              <p class="about" id="ownerHint" style="margin:0"></p>
+              <label class="field"><span class="lbl">קוד בעלים</span><input class="inp" id="ownPin" type="password" autocomplete="off" placeholder="לפחות 6 תווים"></label>
+              <label class="field"><span class="lbl">מפתח API מ-console.anthropic.com</span><input class="inp" id="ownKey" type="password" autocomplete="off" placeholder="sk-ant-..." dir="ltr"></label>
+              <div class="row2"><button class="btn ghost" id="ownTest" type="button">בדוק מפתח קיים</button><button class="btn" id="ownSave" type="button">שמור ובדוק</button></div>
+              <div class="status" id="ownStatus" role="status"></div>
+            </div>
+          </details>
+          <p class="about" id="ownerOld" style="margin:0" hidden>כדי להגדיר את המפתח ישירות מכאן צריך לעדכן את קוד השרת לגרסה 6.</p>
           <button class="btn ghost" id="srvCheck" type="button">בדוק שוב</button>
         </div>
       </div>
@@ -528,7 +545,7 @@ function saveQuota(){try{localStorage.setItem('bis.quota',JSON.stringify(quota))
 const SERVER_MSG={
   no_key:'בשרת הזיהוי חסר מפתח API.',
   no_credit:'נגמר הקרדיט בחשבון Anthropic, ולכן הזיהוי מתמונה לא זמין כרגע.',
-  bad_key:'מפתח ה-API של שרת הזיהוי לא תקין.',
+  bad_key:'מפתח ה-API של שרת הזיהוי לא תקין. בעל האפליקציה יכול לתקן אותו במסך יעדים.',
   forbidden:'חשבון Anthropic חסם את הבקשה.',
   model:'המודל שהוגדר בשרת לא קיים.',
   busy:'Claude עמוס כרגע. נסה שוב בעוד דקה.',
@@ -619,7 +636,7 @@ function renderServerBox(){
   let html=row('מצב',!h?'בודק…':h.state==='ok'?'תקין ✓':healthMsg(h),!h?'':h.state==='ok'?'ok':'bad');
   if(j&&j.service==='bis'){
     const keyRejected=h.state==='problem'&&h.code==='bad_key',keyBadFormat=j.keyFormat==='bad';
-    html+=row('מפתח API',!j.key?'חסר':keyBadFormat?'לא נראה תקין, צריך להתחיל ב-sk-ant-':keyRejected?'Anthropic דוחה את המפתח':'מוגדר ✓',j.key&&!keyBadFormat&&!keyRejected?'ok':'bad');
+    html+=row('מפתח API',!j.key?'חסר':keyBadFormat?'לא נראה תקין, צריך להתחיל ב-sk-ant-':keyRejected?'Anthropic דוחה את המפתח':j.keySource==='app'?'הוגדר מהאפליקציה ✓':'מוגדר ✓',j.key&&!keyBadFormat&&!keyRejected?'ok':'bad');
     html+=row('מונים',j.limits==='kv'?'קבועים (KV) ✓':'זמניים, חסר חיבור KV',j.limits==='kv'?'ok':'bad');
     if(j.userToday!=null)html+=row('הזיהויים שלך היום',`<span class="num">${j.userToday} מתוך ${j.perUser}</span>`);
     else html+=row('לכל טלפון ביום',`<span class="num">${j.perUser??'–'}</span>`);
@@ -627,6 +644,42 @@ function renderServerBox(){
     html+=row('גרסת שרת',`<span class="num">${j.version||'ישנה'}</span>`,j.version?'':'bad');
   }
   $('#serverRows').innerHTML=html;
+  const v=j&&j.service==='bis'?j.version||0:0;
+  $('#ownerBox').hidden=!(v>=6);$('#ownerOld').hidden=!(j&&j.service==='bis'&&v<6);
+  if(v>=6){
+    $('#ownerHint').textContent=j.ownerSet?'הזן את קוד הבעלים שבחרת. אפשר להחליף מפתח או לבדוק את הקיים.':'בפעם הראשונה בוחרים כאן קוד בעלים (לפחות 6 תווים) ושומרים אותו. הוא יידרש כדי לשנות את המפתח בעתיד.';
+    $('#ownTest').hidden=!j.ownerSet;
+    if(h.state!=='ok'&&!$('#ownerBox').dataset.touched)$('#ownerBox').open=true;
+  }
+}
+const OWN_MSG={
+  ok:'✓ המפתח עובד ויש קרדיט. הזיהוי מתמונה פעיל לכולם.',
+  no_credit:'המפתח תקין ונשמר, אבל אין קרדיט בחשבון Anthropic. טען קרדיט ב-Billing ואז לחץ "בדוק מפתח קיים".',
+  unknown:'המפתח נשמר, אבל Claude עמוס כרגע ולא הצלחתי לבדוק. לחץ "בדוק מפתח קיים" בעוד דקה.',
+  bad_key:'Anthropic דוחה את המפתח. צור מפתח חדש ב-API keys והעתק אותו בכפתור ההעתקה שמופיע מיד אחרי היצירה. ברשימת המפתחות הוא מוצג מוסתר, וההעתקה משם לא עובדת.',
+  forbidden:'Anthropic חוסם את המפתח הזה. בדוק שהחשבון פעיל.',
+  key_format:'זה לא מפתח API מלא. מפתח מתחיל ב-sk-ant- ואורכו כ-100 תווים.',
+  bad_pin:'קוד הבעלים שגוי.',
+  pin_short:'קוד הבעלים צריך להיות לפחות 6 תווים.',
+  rate_limited:'יותר מדי ניסיונות היום. נסה שוב מחר.',
+  no_kv:'חסר חיבור KV בשרת (Bindings → LIMITS).',
+  no_owner:'עוד לא נשמר מפתח מכאן. הזן קוד בעלים ומפתח ולחץ "שמור ובדוק".',
+  no_key:'אין מפתח בשרת.'
+};
+async function ownerAction(action){
+  const st=$('#ownStatus');const show=(m,err,good)=>{st.className='status'+(err?' err':good?' ok':'');st.textContent=m};
+  const pin=$('#ownPin').value.trim(),key=$('#ownKey').value.trim().replace(/^["']+|["']+$/g,'').trim();
+  if(pin.length<6)return show(OWN_MSG.pin_short,true);
+  if(action==='setkey'&&!/^sk-ant-[A-Za-z0-9_-]{20,}$/.test(key))return show(OWN_MSG.key_format+(key?` הודבקו ${key.length} תווים.`:''),true);
+  show('בודק מול Anthropic…');$('#ownSave').disabled=$('#ownTest').disabled=true;
+  try{
+    const r=await fetchT(SERVER+'/admin',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action,pin,key:action==='setkey'?key:undefined})},30000);
+    const j=await r.json().catch(()=>null);
+    if(!j)show(SERVER_MSG.old,true);
+    else{const code=j.ok?j.result:j.error;show(OWN_MSG[code]||('שגיאה: '+code),code!=='ok',code==='ok');if(j.ok&&action==='setkey')$('#ownKey').value=''}
+  }catch(e){show(errText(e),true)}
+  $('#ownSave').disabled=$('#ownTest').disabled=false;
+  checkServer();
 }
 /* local food table — per 100 g: kcal, protein, fat, carbs; u = grams per unit/slice/serving */
 const FOODS=[
@@ -931,6 +984,9 @@ $('#wipeYes').onclick=()=>{const key=S.settings.apiKey;S={...DEF,settings:{...DE
 
 function renderAll(){renderToday();renderMealType();renderEngine();if(view==='weight')renderWeight();if(view==='settings')renderSettings()}
 $('#srvCheck').onclick=()=>{health=null;renderServerBox();checkServer()};
+$('#ownSave').onclick=()=>ownerAction('setkey');
+$('#ownTest').onclick=()=>ownerAction('testkey');
+$('#ownerBox').addEventListener('toggle',e=>{e.currentTarget.dataset.touched='1'});
 let lastToday=dkey();
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden)return;
