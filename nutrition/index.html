@@ -598,7 +598,7 @@ async function aiAnalyze(desc,blob){
 
 /* ---------- server health (no Claude call, costs nothing) ---------- */
 let health=null,healthAt=0;
-const HEALTH_MSG={down:'שרת הזיהוי לא זמין כרגע. אפשר להוסיף בכתב.',nokey:'בשרת הזיהוי חסר מפתח API.',old:'שרת הזיהוי צריך עדכון קוד.'};
+const HEALTH_MSG={down:'שרת הזיהוי לא זמין כרגע. אפשר להוסיף בכתב.',nokey:'בשרת הזיהוי חסר מפתח API.',keyformat:'מפתח ה-API בשרת לא נראה תקין.',old:'שרת הזיהוי צריך עדכון קוד.'};
 const healthMsg=h=>h.state==='problem'?(SERVER_MSG[h.code]||'יש תקלה בחשבון Anthropic.'):HEALTH_MSG[h.state];
 async function checkServer(){
   if(!SERVER)return;
@@ -606,7 +606,7 @@ async function checkServer(){
   try{
     const r=await fetchT(SERVER+'/?device='+DEVICE+'&t='+Date.now(),{cache:'no-store'},10000);
     let j=null;try{j=await r.json()}catch(e){}
-    health=!j||j.service!=='bis'||!j.version?{state:'old',j}:!j.key?{state:'nokey',j}:j.problem?{state:'problem',code:j.problem.code,j}:{state:'ok',j};
+    health=!j||j.service!=='bis'||!j.version?{state:'old',j}:!j.key?{state:'nokey',j}:j.keyFormat==='bad'?{state:'keyformat',j}:j.problem?{state:'problem',code:j.problem.code,j}:{state:'ok',j};
     if(j&&j.userToday!=null&&j.perUser){quota={date:dkey(),left:Math.max(0,Math.min(j.perUser-j.userToday,j.total-j.usedToday)),limit:j.perUser};try{localStorage.setItem('bis.quota',JSON.stringify(quota))}catch(e){}}
   }catch(e){health={state:'down'}}
   renderEngine();renderServerBox();
@@ -618,7 +618,8 @@ function renderServerBox(){
   const row=(k,v,cls)=>`<div class="srvRow"><span>${k}</span><b class="${cls||''}">${v}</b></div>`;
   let html=row('מצב',!h?'בודק…':h.state==='ok'?'תקין ✓':healthMsg(h),!h?'':h.state==='ok'?'ok':'bad');
   if(j&&j.service==='bis'){
-    html+=row('מפתח API',j.key?'מוגדר ✓':'חסר',j.key?'ok':'bad');
+    const keyRejected=h.state==='problem'&&h.code==='bad_key',keyBadFormat=j.keyFormat==='bad';
+    html+=row('מפתח API',!j.key?'חסר':keyBadFormat?'לא נראה תקין, צריך להתחיל ב-sk-ant-':keyRejected?'Anthropic דוחה את המפתח':'מוגדר ✓',j.key&&!keyBadFormat&&!keyRejected?'ok':'bad');
     html+=row('מונים',j.limits==='kv'?'קבועים (KV) ✓':'זמניים, חסר חיבור KV',j.limits==='kv'?'ok':'bad');
     if(j.userToday!=null)html+=row('הזיהויים שלך היום',`<span class="num">${j.userToday} מתוך ${j.perUser}</span>`);
     else html+=row('לכל טלפון ביום',`<span class="num">${j.perUser??'–'}</span>`);
