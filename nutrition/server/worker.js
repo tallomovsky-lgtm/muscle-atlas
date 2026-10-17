@@ -1,24 +1,49 @@
 // Bis food-recognition server (Cloudflare Worker).
 // Holds the Anthropic API key so app users don't need their own.
 // Secret:   ANTHROPIC_API_KEY
+// Binding:  LIMITS           KV namespace that keeps the daily counters (recommended)
 // Optional: ALLOWED_ORIGINS  comma-separated, default the GitHub Pages site
 //           MODEL            default claude-opus-5-5 (claude-haiku-5-5 is much cheaper)
-//           HOURLY_LIMIT     photos per user IP per hour, default 30
+//           DAILY_PER_USER   requests per phone per day, default 6
+//           DAILY_PER_IP     requests per network address per day, default 20
+//           DAILY_TOTAL      requests for everyone together per day, default 12
 
 const DEFAULT_ORIGINS = 'https://tallomovsky-lgtm.github.io';
 const MAX_IMAGE_B64 = 2_000_000; // ~1.5 MB jpeg; the app sends ~200-400 KB
 const MAX_DESC = 600;
 
-// Soft per-IP limit. Lives per Worker instance, so it is a speed bump, not a wall;
-// the real cap is the monthly spend limit set in the Anthropic console.
-const hits = new Map();
-function limited(ip, max) {
-  const now = Date.now(), hour = 3600_000;
-  const list = (hits.get(ip) || []).filter(t => now - t < hour);
-  if (list.length >= max) { hits.set(ip, list); return true; }
-  list.push(now); hits.set(ip, list);
-  if (hits.size > 5000) hits.clear();
-  return false;
+// Daily quotas, reset at midnight Israel time. With the LIMITS KV binding the counters
+// survive restarts and are shared by every Worker instance; without it they live in
+// memory and only slow abuse down. The monthly spend limit in the Anthropic console
+// is the hard ceiling either way.
+const mem = new Map();
+const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' });
+async function getCount(env, key) {
+  if (env.LIMITS) return Number(await env.LIMITS.get(key)) || 0;
+  return mem.get(key) || 0;
+}
+async function setCount(env, key, n) {
+  if (env.LIMITS) return env.LIMITS.put(key, String(n), { expirationTtl: 172800 });
+  if (mem.size > 5000) mem.clear();
+  mem.set(key, n);
+}
+function limitsOf(env) {
+  return {
+    user: Number(env.DAILY_PER_USER) || 6,
+    ip: Number(env.DAILY_PER_IP) || 20,
+    total: Number(env.DAILY_TOTAL) || 12,
+  };
+}
+// Reserves one request before calling Claude, so a failed call can't be retried for free.
+async function takeQuota(env, device, ip) {
+  const d = today(), lim = limitsOf(env);
+  const keys = { total: `${d}:all`, user: `${d}:u:${device || ip}`, ip: `${d}:ip:${ip}` };
+  const [total, user, byIp] = await Promise.all([getCount(env, keys.total), getCount(env, keys.user), getCount(env, keys.ip)]);
+  if (total >= lim.total) return { ok: false, scope: 'all', limit: lim.total };
+  if (user >= lim.user) return { ok: false, scope: 'user', limit: lim.user };
+  if (byIp >= lim.ip) return { ok: false, scope: 'user', limit: lim.user };
+  await Promise.all([setCount(env, keys.total, total + 1), setCount(env, keys.user, user + 1), setCount(env, keys.ip, byIp + 1)]);
+  return { ok: true, left: Math.max(0, Math.min(lim.user - user - 1, lim.total - total - 1)), limit: lim.user };
 }
 
 function cors(origin, allowed) {
@@ -49,20 +74,26 @@ export default {
     const reply = (status, body) => new Response(JSON.stringify(body), { status, headers: { ...headers, 'content-type': 'application/json; charset=utf-8' } });
 
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
-    if (request.method === 'GET') return reply(200, { ok: true, service: 'bis' });
+    if (request.method === 'GET') {
+      const lim = limitsOf(env);
+      return reply(200, { ok: true, service: 'bis', key: !!env.ANTHROPIC_API_KEY, limits: env.LIMITS ? 'kv' : 'memory',
+        perUser: lim.user, total: lim.total, usedToday: await getCount(env, `${today()}:all`) });
+    }
     if (request.method !== 'POST') return reply(405, { error: 'method' });
     if (!allowed.includes(origin)) return reply(403, { error: 'origin' });
     if (!env.ANTHROPIC_API_KEY) return reply(500, { error: 'no_key' });
-
-    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-    if (limited(ip, Number(env.HOURLY_LIMIT) || 30)) return reply(429, { error: 'rate_limited' });
 
     let body;
     try { body = await request.json(); } catch { return reply(400, { error: 'bad_json' }); }
     const desc = typeof body.desc === 'string' ? body.desc.trim().slice(0, MAX_DESC) : '';
     const image = typeof body.image === 'string' ? body.image : '';
+    const device = typeof body.device === 'string' && /^[a-z0-9]{8,40}$/.test(body.device) ? body.device : '';
     if (!desc && !image) return reply(400, { error: 'empty' });
     if (image && (image.length > MAX_IMAGE_B64 || !/^[A-Za-z0-9+/=]+$/.test(image))) return reply(413, { error: 'image' });
+
+    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+    const quota = await takeQuota(env, device, ip);
+    if (!quota.ok) return reply(429, { error: 'rate_limited', scope: quota.scope, limit: quota.limit });
 
     const content = [];
     if (image) content.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } });
@@ -96,6 +127,7 @@ export default {
       const out = JSON.parse(text.slice(a, b + 1));
       const num = v => Math.max(0, Number(v) || 0);
       return reply(200, {
+        quota: { left: quota.left, limit: quota.limit },
         title: String(out.title || '').slice(0, 80),
         note: String(out.note || '').slice(0, 300),
         items: (Array.isArray(out.items) ? out.items : []).slice(0, 20).map(x => ({
