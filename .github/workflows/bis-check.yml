@@ -13,12 +13,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Health (no Claude call)
-        run: curl -sS -m 20 -w '\nHTTP %{http_code}\n' "$SERVER/?device=ghcheck0001"
+        run: |
+          curl -sS -m 20 -w '\nHTTP %{http_code}\n' "$SERVER/?device=ghcheck0001"
       - name: CORS preflight from the app's origin
-        run: curl -sS -m 20 -o /dev/null -D - -X OPTIONS -H "Origin: $ORIGIN" -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: content-type' "$SERVER/analyze" | grep -iE '^(HTTP|access-control)'
+        run: |
+          curl -sS -m 20 -o /dev/null -D - -X OPTIONS -H "Origin: $ORIGIN" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: content-type" "$SERVER/analyze" | grep -iE '^(HTTP|access-control)'
       - name: Real photo recognition (sushi)
         run: |
           python3 -c "import base64,json;print(json.dumps({'desc':'','device':'ghcheck0001','image':base64.b64encode(open('.github/bis-check/sushi.jpg','rb').read()).decode()}))" > body.json
-          curl -sS -m 120 -w '\nHTTP %{http_code}  time %{time_total}s\n' -X POST -H "Origin: $ORIGIN" -H 'content-type: application/json' --data @body.json "$SERVER/analyze"
+          curl -sS -m 120 -w '\nHTTP %{http_code}  time %{time_total}s\n' -X POST -H "Origin: $ORIGIN" -H "content-type: application/json" --data @body.json "$SERVER/analyze"
       - name: Health after
-        run: curl -sS -m 20 "$SERVER/?device=ghcheck0001"; echo
+        run: |
+          curl -sS -m 20 "$SERVER/?device=ghcheck0001"; echo
