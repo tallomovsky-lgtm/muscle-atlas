@@ -1,14 +1,15 @@
 // Bis food-recognition server (Cloudflare Worker).
 // Holds the Anthropic API key so app users don't need their own.
-// Secret:   ANTHROPIC_API_KEY
-// Binding:  LIMITS           KV namespace that keeps the daily counters (recommended)
+// Key:      set from the app (Settings → owner) and kept in KV; the ANTHROPIC_API_KEY
+//           secret is used only when no key was set from the app
+// Binding:  LIMITS           KV namespace for the key, the owner code and the daily counters
 // Optional: ALLOWED_ORIGINS  comma-separated, default the GitHub Pages site
 //           MODEL            default claude-opus-5-5 (claude-haiku-5-5 is much cheaper)
 //           DAILY_PER_USER   requests per phone per day, default 6
 //           DAILY_PER_IP     requests per network address per day, default 20
 //           DAILY_TOTAL      requests for everyone together per day, default 12
 
-const VERSION = 5;
+const VERSION = 6;
 const DEFAULT_ORIGINS = 'https://tallomovsky-lgtm.github.io';
 const MAX_IMAGE_B64 = 3_000_000; // ~2.2 MB jpeg; the app sends ~100-300 KB
 const MAX_DESC = 600;
@@ -98,12 +99,78 @@ If there is no food, return {"title":"","items":[],"note":"<Hebrew explanation>"
 // Raw fetch: a Worker pasted into the Cloudflare dashboard has no npm bundler for the SDK.
 // The first attempt asks for low effort and server-side refusal fallbacks; if the API rejects
 // the request shape (400 that isn't about credit), it retries once with only the basics.
-// Pasting into the dashboard easily adds spaces, a newline or quotes around the key.
-const apiKey = env => String(env.ANTHROPIC_API_KEY || '').trim().replace(/^["']+|["']+$/g, '').trim();
+// Pasting easily adds spaces, a newline or quotes around the key.
+const cleanKey = k => String(k || '').trim().replace(/^["']+|["']+$/g, '').trim();
 const keyFormat = k => (/^sk-ant-[A-Za-z0-9_-]{20,}$/.test(k) ? 'ok' : 'bad');
+const KEY_KV = 'cfg:apikey', PIN_KV = 'cfg:pinhash';
+async function storedKey(env) {
+  if (!env.LIMITS) return '';
+  try { return cleanKey(await env.LIMITS.get(KEY_KV)); } catch { return ''; }
+}
+async function apiKey(env) { return (await storedKey(env)) || cleanKey(env.ANTHROPIC_API_KEY); }
 
-function callClaude(env, content, basic) {
-  const headers = { 'content-type': 'application/json', 'x-api-key': apiKey(env), 'anthropic-version': '2023-06-01' };
+// Checks a key with a tiny request (a few tokens, a fraction of a cent): 401 means the key
+// is wrong, a credit error means it is right but the account has no credit.
+async function testKey(key) {
+  let r;
+  try {
+    r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: 'claude-haiku-5-5', max_tokens: 8, messages: [{ role: 'user', content: 'Reply with OK' }] }),
+    });
+  } catch { return 'unknown'; }
+  if (r.ok) return 'ok';
+  const err = await errorOf(r);
+  if (r.status === 401) return 'bad_key';
+  if (r.status === 403) return 'forbidden';
+  if (codeFor(r.status, err) === 'no_credit') return 'no_credit';
+  if (r.status === 529 || r.status >= 500) return 'unknown';
+  return 'ok'; // authenticated; other 4xx are about this tiny request, not the key
+}
+async function sha(text) {
+  const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('bis-owner:' + text));
+  return [...new Uint8Array(d)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Owner actions from the app. The first owner code ever sent becomes the code; after that
+// every action needs it. Attempts are limited per network address per day.
+async function admin(env, body, ip, reply) {
+  if (!env.LIMITS) return reply(400, { error: 'no_kv' });
+  const attemptsKey = `${today()}:admin:${ip}`;
+  const attempts = await getCount(env, attemptsKey);
+  if (attempts >= 10) return reply(429, { error: 'rate_limited' });
+  await setCount(env, attemptsKey, attempts + 1);
+
+  const pin = typeof body.pin === 'string' ? body.pin.trim() : '';
+  if (pin.length < 6 || pin.length > 64) return reply(400, { error: 'pin_short' });
+  const saved = await env.LIMITS.get(PIN_KV);
+  const hash = await sha(pin);
+  if (saved && saved !== hash) return reply(403, { error: 'bad_pin' });
+
+  if (body.action === 'setkey') {
+    const key = cleanKey(body.key);
+    if (keyFormat(key) !== 'ok') return reply(400, { error: 'key_format', length: key.length });
+    const result = await testKey(key);
+    if (result === 'bad_key' || result === 'forbidden') return reply(400, { error: result });
+    if (!saved) await env.LIMITS.put(PIN_KV, hash);
+    await env.LIMITS.put(KEY_KV, key);
+    if (result === 'ok') await clearProblem(env); else if (result === 'no_credit') await setProblem(env, 'no_credit');
+    return reply(200, { ok: true, result });
+  }
+  if (body.action === 'testkey') {
+    if (!saved) return reply(400, { error: 'no_owner' });
+    const key = await apiKey(env);
+    if (!key) return reply(400, { error: 'no_key' });
+    const result = await testKey(key);
+    if (result === 'ok') await clearProblem(env); else if (['bad_key', 'forbidden', 'no_credit'].includes(result)) await setProblem(env, result);
+    return reply(200, { ok: true, result });
+  }
+  return reply(400, { error: 'action' });
+}
+
+async function callClaude(env, content, basic) {
+  const headers = { 'content-type': 'application/json', 'x-api-key': await apiKey(env), 'anthropic-version': '2023-06-01' };
   const body = { model: env.MODEL || 'claude-opus-5-5', max_tokens: 16000, messages: [{ role: 'user', content }] };
   if (!basic) {
     headers['anthropic-beta'] = 'server-side-fallback-2026-07-01';
@@ -132,17 +199,20 @@ async function handle(request, env, reply) {
   if (request.method === 'GET') {
     const device = new URL(request.url).searchParams.get('device') || '';
     const d = today();
-    const k = apiKey(env);
-    return reply(200, { ok: true, service: 'bis', version: VERSION, key: !!k, keyFormat: k ? keyFormat(k) : null, keyLength: k.length, limits: env.LIMITS ? 'kv' : 'memory',
+    const fromApp = await storedKey(env), k = fromApp || cleanKey(env.ANTHROPIC_API_KEY);
+    return reply(200, { ok: true, service: 'bis', version: VERSION, key: !!k, keyFormat: k ? keyFormat(k) : null, keyLength: k.length,
+      keySource: fromApp ? 'app' : k ? 'cloudflare' : null, ownerSet: env.LIMITS ? !!(await env.LIMITS.get(PIN_KV)) : false, limits: env.LIMITS ? 'kv' : 'memory',
       perUser: lim.user, total: lim.total, usedToday: await getCount(env, `${d}:all`),
       userToday: DEVICE_RE.test(device) ? await getCount(env, `${d}:u:${device}`) : null,
       problem: await getProblem(env) });
   }
   if (request.method !== 'POST') return reply(405, { error: 'method' });
-  if (!apiKey(env)) return reply(500, { error: 'no_key' });
 
   let body;
   try { body = await request.json(); } catch { return reply(400, { error: 'bad_json' }); }
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  if (new URL(request.url).pathname === '/admin') return admin(env, body, ip, reply);
+  if (!(await apiKey(env))) return reply(500, { error: 'no_key' });
   const desc = typeof body.desc === 'string' ? body.desc.trim().slice(0, MAX_DESC) : '';
   const image = typeof body.image === 'string' ? body.image : '';
   const device = typeof body.device === 'string' && DEVICE_RE.test(body.device) ? body.device : '';
@@ -150,7 +220,6 @@ async function handle(request, env, reply) {
   // cheap sanity check; scanning the whole base64 string costs CPU time on the free plan
   if (image && (image.length > MAX_IMAGE_B64 || !/^[A-Za-z0-9+/]{16}/.test(image))) return reply(413, { error: 'image' });
 
-  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
   const quota = await takeQuota(env, device, ip);
   if (!quota.ok) return reply(429, { error: 'rate_limited', scope: quota.scope, limit: quota.limit });
 
