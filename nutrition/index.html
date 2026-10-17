@@ -11,6 +11,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
+<script src="config.js"></script>
 <title>ביס · Bis</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -464,11 +465,12 @@ async function initRuntime(){
 
 /* ---------- food analysis ---------- */
 let sample=null,sampleImages=false;
-const aiAvailable=img=>(sample&&(!img||sampleImages))||!!S.settings.apiKey;
+const SERVER=String(window.BIS_SERVER||'').replace(/\/+$/,'');
+const aiAvailable=img=>(sample&&(!img||sampleImages))||!!SERVER||!!S.settings.apiKey;
 function renderEngine(){
-  const on=(sample&&sampleImages)||!!S.settings.apiKey;
+  const on=(sample&&sampleImages)||!!SERVER||!!S.settings.apiKey;
   const e=$('#engine');e.classList.toggle('on',on);e.querySelector('span').textContent=on?'זיהוי AI פעיל':(sample?'AI לטקסט':'מצב בסיסי');
-  $('#keyBox').hidden=!!(sample&&sampleImages);
+  $('#keyBox').hidden=!!((sample&&sampleImages)||SERVER);
   $('#shotSub').textContent=on?'או בחר תמונה מהגלריה':'זיהוי תמונה דורש מפתח AI ביעדים';
 }
 
@@ -489,6 +491,11 @@ async function aiAnalyze(desc,blob){
     const opts={modelTier:'default',cache:false};if(blob)opts.images=[blob];
     const out=await sample(prompt,opts);
     return parseJSON(out.text);
+  }
+  if(SERVER&&!S.settings.apiKey){
+    const r=await fetch(SERVER+'/analyze',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({desc,image:blob?await blobToB64(blob):undefined})});
+    if(!r.ok){const e=new Error('server');e.status=r.status;if(r.status===429)e.code='rate_limited';throw e}
+    return r.json();
   }
   const content=[];
   if(blob)content.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:await blobToB64(blob)}});
