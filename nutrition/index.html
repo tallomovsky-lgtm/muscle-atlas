@@ -54,8 +54,8 @@ input,textarea{font:inherit;color:inherit}
 
 /* top */
 .top{flex:none;display:flex;align-items:center;gap:10px;padding-block:12px 6px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-.logo{width:36px;height:36px;border-radius:50%;background:var(--accent);display:grid;place-items:center;flex:none}
-.logo svg{width:22px;height:22px}
+.logo{width:38px;height:38px;border-radius:11px;flex:none;overflow:hidden;box-shadow:0 4px 14px rgba(14,124,90,.28)}
+.logo svg{width:100%;height:100%;display:block}
 .brand{flex:1;min-width:0}
 .brand h1{margin:0;font-family:var(--f-display);font-weight:400;font-size:23px;line-height:1;letter-spacing:-.01em}
 .brand small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
@@ -126,14 +126,19 @@ input,textarea{font:inherit;color:inherit}
 .empty b{display:block;color:var(--ink);font-size:15px;margin-bottom:4px}
 
 /* add */
-.shot{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:190px;border-radius:22px;border:1.5px dashed var(--line);background:var(--surface);cursor:pointer;overflow:hidden;text-align:center;padding:16px}
+.shot{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:220px;border-radius:22px;border:1.5px dashed var(--line);background:var(--surface);overflow:hidden;text-align:center;padding:18px 16px}
+.shotBtns{display:flex;gap:10px;margin-top:6px;flex-wrap:wrap;justify-content:center}
+.shotBtn{height:42px;padding:0 18px;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-weight:800;font-size:14.5px;display:flex;align-items:center;gap:8px;cursor:pointer}
+.shotBtn.alt{background:var(--surface2);color:var(--ink);border:1px solid var(--line)}
+.shotBtn svg{width:19px;height:19px}
+.shotBtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .shot .lens{width:64px;height:64px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;box-shadow:0 0 0 8px var(--accent-soft)}
 .shot .lens svg{width:30px;height:30px}
 .shot b{font-size:16px}
 .shot small{color:var(--muted);font-size:13px}
-.shot img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.shot img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2}
 .shot.has{border-style:solid;min-height:230px}
-.shot .clear{position:absolute;top:10px;inset-inline-end:10px;z-index:2;height:32px;padding:0 12px;border-radius:999px;background:rgba(0,0,0,.6);color:#fff;font-size:13px;font-weight:700}
+.shot .clear{position:absolute;top:10px;inset-inline-end:10px;z-index:3;height:32px;padding:0 12px;border-radius:999px;background:rgba(0,0,0,.6);color:#fff;font-size:13px;font-weight:700}
 .shot input{position:absolute;width:1px;height:1px;opacity:0}
 .or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12.5px;font-weight:700}
 .or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
@@ -247,7 +252,7 @@ textarea:focus,.inp:focus{border-color:var(--accent)}
 </head><body>
 <div class="app" dir="rtl" lang="he">
   <header class="top">
-    <div class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="var(--accent-ink)" stroke-width="2"/><path d="M17.5 4.5a4 4 0 0 0 2 5.6 4 4 0 0 0-4.6-.8" fill="var(--accent)" stroke="var(--accent-ink)" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="12" r="3.4" fill="var(--accent-ink)"/></svg></div>
+    <div class="logo" aria-hidden="true"><svg viewBox="0 0 40 40"><defs><linearGradient id="bisG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#46E3AA"/><stop offset=".5" stop-color="#12936A"/><stop offset="1" stop-color="#07503A"/></linearGradient><mask id="bisBite"><rect width="40" height="40" fill="#fff"/><circle cx="26.61" cy="8.80" r="2.70" fill="#000"/><circle cx="28.70" cy="10.34" r="3.00" fill="#000"/><circle cx="30.44" cy="12.26" r="2.70" fill="#000"/></mask></defs><rect width="40" height="40" rx="11" fill="url(#bisG)"/><g mask="url(#bisBite)"><circle cx="20" cy="20" r="12.5" fill="#fff"/><path d="M29.90 16.97A10.35 10.35 0 0 1 22.09 30.14" stroke="#7B84F7" stroke-width="1.8" stroke-linecap="round" fill="none"/><path d="M21.02 30.30A10.35 10.35 0 0 1 9.65 20.06" stroke="#F6B648" stroke-width="1.8" stroke-linecap="round" fill="none"/><path d="M9.70 18.98A10.35 10.35 0 0 1 21.97 9.84" stroke="#FF7C95" stroke-width="1.8" stroke-linecap="round" fill="none"/><circle cx="20" cy="20" r="7.5" fill="#EEF6F2"/><ellipse cx="20" cy="20" rx="5.3" ry="2.5" transform="rotate(-40 20 20)" fill="#12A372"/></g></svg></div>
     <div class="brand"><h1>ביס</h1><small id="subtitle">יומן תזונה ומשקל</small></div>
     <div class="engine" id="engine"><i></i><span>מצב בסיסי</span></div>
   </header>
@@ -285,15 +290,20 @@ textarea:focus,.inp:focus{border-color:var(--accent)}
     <!-- ADD -->
     <section class="view" id="v-add" hidden>
       <div id="addForm" style="display:flex;flex-direction:column;gap:14px">
-        <label class="shot" id="shot" for="photo">
-          <input type="file" id="photo" accept="image/*" capture="environment">
+        <div class="shot" id="shot">
+          <input type="file" id="photoCam" accept="image/*" capture="environment" tabindex="-1">
+          <input type="file" id="photoGal" accept="image/*" tabindex="-1">
           <span class="lens"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.3l1.4-2h5.6l1.4 2h1.3A2.5 2.5 0 0 1 20 8.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
           <b>צלם את הצלחת</b>
-          <small id="shotSub">או בחר תמונה מהגלריה</small>
-        </label>
+          <small id="shotSub">או בחר תמונה שכבר צילמת</small>
+          <div class="shotBtns">
+            <label class="shotBtn" for="photoCam" tabindex="0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.3l1.4-2h5.6l1.4 2h1.3A2.5 2.5 0 0 1 20 8.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5z"/><circle cx="12" cy="12.5" r="3.5"/></svg>מצלמה</label>
+            <label class="shotBtn alt" for="photoGal" tabindex="0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="m4 17 5-4.5 3.5 3 3-2.5L20 17"/></svg>מהגלריה</label>
+          </div>
+        </div>
         <div class="or">ו/או</div>
         <div class="field">
-          <label for="desc">מה אכלת?</label>
+          <label for="desc">מה אכלת? (לא חובה עם תמונה)</label>
           <textarea id="desc" rows="2" placeholder="למשל: 2 ביצים, פרוסת לחם מלא וסלט ירקות"></textarea>
           <span class="hint" id="descHint">כמות + מאכל עובד הכי טוב. עם תמונה, התיאור עוזר לדייק.</span>
         </div>
@@ -305,7 +315,8 @@ textarea:focus,.inp:focus{border-color:var(--accent)}
         <div class="status" id="status"></div>
       </div>
       <div class="card result" id="result" hidden>
-        <div class="resHead"><b id="resName">התוצאה</b><span class="num" id="resK">0 <small>קק״ל</small></span></div>
+        <div class="field"><label for="resTitle">מה אכלת (יופיע ביומן)</label><input class="inp" id="resTitle" maxlength="80" placeholder="למשל: שניצל עם פירה"></div>
+        <div class="resHead"><b>סה״כ</b><span class="num" id="resK">0 <small>קק״ל</small></span></div>
         <div class="totals">
           <div class="tot p"><small>חלבון</small><b class="num" id="rP">0<em> ג׳</em></b></div>
           <div class="tot f"><small>שומן</small><b class="num" id="rF">0<em> ג׳</em></b></div>
@@ -471,7 +482,7 @@ function renderEngine(){
   const on=(sample&&sampleImages)||!!SERVER||!!S.settings.apiKey;
   const e=$('#engine');e.classList.toggle('on',on);e.querySelector('span').textContent=on?'זיהוי AI פעיל':(sample?'AI לטקסט':'מצב בסיסי');
   $('#keyBox').hidden=!!((sample&&sampleImages)||SERVER);
-  $('#shotSub').textContent=on?'או בחר תמונה מהגלריה':'זיהוי תמונה דורש מפתח AI ביעדים';
+  $('#shotSub').textContent=on?'או בחר תמונה שכבר צילמת':'זיהוי תמונה דורש מפתח AI ביעדים';
 }
 
 function promptFor(desc,hasImg){
@@ -637,7 +648,7 @@ function renderMealType(){document.querySelectorAll('#mealType .chip').forEach(c
 $('#mealType').onclick=e=>{const c=e.target.closest('.chip');if(c){mealType=c.dataset.m;renderMealType()}};
 const updAnalyze=()=>{$('#analyze').disabled=!photoBlob&&!$('#desc').value.trim()};
 $('#desc').addEventListener('input',updAnalyze);
-$('#photo').addEventListener('change',async e=>{
+const onPhoto=async e=>{
   const f=e.target.files&&e.target.files[0];if(!f)return;
   try{
     const img=await loadImg(f);photoBlob=await drawTo(img,1280,'image/jpeg',0.85).blob();photoThumb=thumbOf(img);
@@ -648,7 +659,9 @@ $('#photo').addEventListener('change',async e=>{
     setStatus(aiAvailable(true)?'':'בלי מפתח AI אפשר לחשב רק לפי תיאור בכתב. הוסף מפתח במסך יעדים.',!aiAvailable(true));
   }catch(err){setStatus('לא הצלחתי לפתוח את התמונה. נסה קובץ JPG או PNG.',true)}
   updAnalyze();e.target.value='';
-});
+};
+['#photoCam','#photoGal'].forEach(id=>$(id).addEventListener('change',onPhoto));
+document.querySelectorAll('.shotBtn').forEach(l=>l.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('#'+l.htmlFor).click()}}));
 function clearPhoto(){photoBlob=null;photoThumb=null;const s=$('#shot');s.classList.remove('has');s.querySelectorAll('img,.clear').forEach(x=>x.remove());updAnalyze();setStatus('')}
 function setStatus(m,err,busy){const s=$('#status');s.className='status'+(err?' err':'');s.innerHTML=busy?`<span style="display:inline-flex;gap:8px;align-items:center"><span class="spin"></span>${esc(m)}</span>`:esc(m)}
 
@@ -670,31 +683,37 @@ $('#analyze').onclick=async()=>{
   updAnalyze();
   if(!res||!res.items||!res.items.length){setStatus(res&&res.note?res.note:'לא זיהיתי מאכלים. נסה לכתוב כמות + שם, למשל "150 גרם חזה עוף".',true);return}
   setStatus('');
-  pending={title:res.title||desc.slice(0,40)||'ארוחה',note:res.note||'',items:res.items.map(x=>{
+  pending={title:(desc&&desc.length<=60?desc:res.title)||desc.slice(0,60)||'ארוחה',note:res.note||'',items:res.items.map(x=>{
     const n=v=>Math.max(0,Number(v)||0);return it(String(x.name||'פריט').slice(0,60),r0(n(x.grams)),r0(n(x.kcal)),r1(n(x.protein)),r1(n(x.fat)),r1(n(x.carbs)))})};
   renderResult();
 };
+const itemNums=x=>`<span>${r0(x.kcal)} קק״ל</span><span style="color:var(--pro)">חלבון ${r1(x.protein)}</span><span style="color:var(--fat)">שומן ${r1(x.fat)}</span><span style="color:var(--carb)">פחמימה ${r1(x.carbs)}</span>`;
+function renderTotals(){
+  const t=sum(pending.items);
+  $('#resK').innerHTML=`${r0(t.kcal)} <small>קק״ל</small>`;
+  $('#rP').innerHTML=`${r0(t.protein)}<em> ג׳</em>`;$('#rF').innerHTML=`${r0(t.fat)}<em> ג׳</em>`;$('#rC').innerHTML=`${r0(t.carbs)}<em> ג׳</em>`;
+  pending.items.forEach((x,i)=>{const el=$('#is'+i);if(el)el.innerHTML=itemNums(x)});
+}
 function renderResult(){
   const r=$('#result');r.hidden=!pending;$('#addForm').hidden=!!pending;
   if(!pending)return;
-  const t=sum(pending.items);
-  $('#resName').textContent=pending.title;
-  $('#resK').innerHTML=`${r0(t.kcal)} <small>קק״ל</small>`;
-  $('#rP').innerHTML=`${r0(t.protein)}<em> ג׳</em>`;$('#rF').innerHTML=`${r0(t.fat)}<em> ג׳</em>`;$('#rC').innerHTML=`${r0(t.carbs)}<em> ג׳</em>`;
+  if(document.activeElement!==$('#resTitle'))$('#resTitle').value=pending.title;
   $('#items').innerHTML=pending.items.map((x,i)=>`<div class="item"><b>${esc(x.name)}</b>
     <span class="g"><input class="num" type="number" inputmode="numeric" min="0" id="g${i}" data-i="${i}" value="${x.grams}" aria-label="גרמים של ${esc(x.name)}"> ג׳</span>
-    <small class="num"><span>${r0(x.kcal)} קק״ל</span><span style="color:var(--pro)">חלבון ${r1(x.protein)}</span><span style="color:var(--fat)">שומן ${r1(x.fat)}</span><span style="color:var(--carb)">פחמימה ${r1(x.carbs)}</span></small></div>`).join('');
+    <small class="num" id="is${i}">${itemNums(x)}</small></div>`).join('');
   $('#resNote').hidden=!pending.note;$('#resNote').textContent=pending.note;
+  renderTotals();
 }
-$('#items').addEventListener('change',e=>{
+$('#items').addEventListener('input',e=>{
   const i=+e.target.dataset.i;if(isNaN(i))return;const x=pending.items[i],b=x.base,g=Math.max(0,Number(e.target.value)||0);
-  const k=b.grams?g/b.grams:0;Object.assign(x,{grams:g,kcal:r0(b.kcal*k),protein:r1(b.protein*k),fat:r1(b.fat*k),carbs:r1(b.carbs*k)});renderResult();
+  const k=b.grams?g/b.grams:0;Object.assign(x,{grams:g,kcal:r0(b.kcal*k),protein:r1(b.protein*k),fat:r1(b.fat*k),carbs:r1(b.carbs*k)});renderTotals();
 });
+$('#resTitle').addEventListener('input',e=>{if(pending)pending.title=e.target.value});
 $('#discard').onclick=()=>{pending=null;renderResult()};
 $('#save').onclick=()=>{
   leaveDemo();
   const items=pending.items.map(({base,...x})=>x);
-  S.meals.push({id:uid(),date:day>dkey()?dkey():day,ts:Date.now(),meal:mealType,name:pending.title,items,thumb:photoThumb||undefined,...sum(items)});
+  S.meals.push({id:uid(),date:day>dkey()?dkey():day,ts:Date.now(),meal:mealType,name:pending.title.trim()||'ארוחה',items,thumb:photoThumb||undefined,...sum(items)});
   persist();pending=null;clearPhoto();$('#desc').value='';updAnalyze();renderResult();
   renderToday();show('today');toast('נוסף ליומן');
 };
