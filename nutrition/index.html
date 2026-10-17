@@ -100,8 +100,8 @@ input,textarea{font:inherit;color:inherit}
 .kcalLine b{font-size:15px;color:var(--ink)}
 .macros{display:flex;flex-direction:column;gap:10px;min-width:0}
 .mac{display:grid;grid-template-columns:1fr auto;gap:4px 8px;font-size:13px}
-.mac span{font-weight:700;display:flex;align-items:center;gap:6px}
-.mac span i{width:8px;height:8px;border-radius:2px;display:block}
+.mac>span{font-weight:700;display:flex;align-items:center;gap:6px}
+.mac>span i{width:8px;height:8px;border-radius:2px;display:block}
 .mac em{font-style:normal;color:var(--muted);white-space:nowrap}
 .mac em b{color:var(--ink);font-weight:800}
 .bar{grid-column:1/-1;height:6px;border-radius:3px;background:var(--surface2);overflow:hidden}
@@ -122,6 +122,36 @@ input,textarea{font:inherit;color:inherit}
 .mealK small{display:block;font-family:var(--f-body);font-size:11px;color:var(--muted);font-weight:600}
 .del{width:30px;height:30px;border-radius:50%;flex:none;display:grid;place-items:center;color:var(--muted)}
 .del svg{width:16px;height:16px}
+.rep{width:30px;height:30px;border-radius:50%;flex:none;display:grid;place-items:center;color:var(--accent)}
+.rep svg{width:17px;height:17px}
+.scanBtn{height:46px;font-size:15px}
+.recent{display:flex;flex-direction:column;gap:8px}
+.recentRow{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;background:var(--surface);border:1px solid var(--line);text-align:start;width:100%}
+.recentRow .thumb{width:40px;height:40px;border-radius:10px}
+.recentRow .mealMain small{font-weight:600}
+.recentRow .plus{width:30px;height:30px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;flex:none}
+.recentRow .plus svg{width:16px;height:16px}
+.calc summary,.owner summary{cursor:pointer;font-weight:800;font-size:14.5px;color:var(--accent);padding:4px 0}
+.calcIn{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+.calcIn .lbl{font-size:13px;font-weight:700;color:var(--ink2)}
+.calcIn .inp{height:46px;padding:0 12px}
+.calcGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+select.inp{appearance:auto}
+.calcOut{border-radius:14px;background:var(--surface2);padding:12px;font-size:14px;line-height:1.6;display:flex;flex-direction:column;gap:6px}
+.calcOut:empty{display:none}
+.calcOut b{font-size:16px}
+.calcOut .macroLine{display:flex;gap:12px;flex-wrap:wrap;font-weight:700}
+.scanner{position:fixed;inset:0;z-index:40;background:#000;color:#fff;display:flex;flex-direction:column;gap:12px;padding-block:calc(env(safe-area-inset-top,0px) + 12px) calc(env(safe-area-inset-bottom,0px) + 16px);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.scanTop{display:flex;align-items:center;justify-content:space-between}
+.scanTop b{font-size:18px}
+.scanTop button{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.15);color:#fff;font-size:20px}
+.scanView{position:relative;flex:1;min-height:0;border-radius:20px;overflow:hidden;background:#111}
+.scanView video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.scanFrame{position:absolute;left:10%;right:10%;top:35%;height:30%;border:3px solid rgba(255,255,255,.9);border-radius:16px;box-shadow:0 0 0 999px rgba(0,0,0,.35)}
+.scanMsg{margin:0;text-align:center;font-weight:700;color:#fff}
+.scanManual{display:flex;gap:8px}
+.scanManual .inp{flex:1;min-width:0;height:48px;background:#1b1b1b;color:#fff;border-color:#333}
+.scanManual .btn{width:auto;padding:0 20px;height:48px}
 .empty{text-align:center;color:var(--muted);padding:22px 12px;border:1.5px dashed var(--line);border-radius:18px;font-size:14px}
 .empty b{display:block;color:var(--ink);font-size:15px;margin-bottom:4px}
 
@@ -313,6 +343,7 @@ textarea:focus,.inp:focus{border-color:var(--accent)}
             <label class="shotBtn alt" for="photoGal" tabindex="0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="m4 17 5-4.5 3.5 3 3-2.5L20 17"/></svg>מהגלריה</label>
           </div>
         </div>
+        <button class="btn ghost scanBtn" id="scanBtn" type="button" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2M7 8v8M10 8v8M13 8v8M16.5 8v8"/></svg>סריקת ברקוד של מוצר</button>
         <div class="or">ו/או</div>
         <div class="field">
           <label for="desc">מה אכלת? (לא חובה עם תמונה)</label>
@@ -326,6 +357,10 @@ textarea:focus,.inp:focus{border-color:var(--accent)}
         </div>
         <button class="btn" id="analyze" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>חשב ערכים</button>
         <div class="status" id="status"></div>
+        <div id="recentBox" hidden style="display:flex;flex-direction:column;gap:10px">
+          <div class="secHead"><h2>להוסיף שוב</h2><span>בלי זיהוי, בלי עלות</span></div>
+          <div class="recent" id="recent"></div>
+        </div>
       </div>
       <div class="card result" id="result" hidden>
         <div class="field"><label for="resTitle">מה אכלת (יופיע ביומן)</label><input class="inp" id="resTitle" maxlength="80" placeholder="למשל: שניצל עם פירה"></div>
@@ -380,6 +415,27 @@ textarea:focus,.inp:focus{border-color:var(--accent)}
         <div class="set"><label for="sC">פחמימה<small>גרם ביום</small></label><input class="inp num" id="sC" type="number" inputmode="numeric"></div>
         <div class="set"><label for="sT">משקל יעד<small>ק״ג, מופיע כקו בגרף</small></label><input class="inp num" id="sT" type="number" inputmode="decimal" step="0.1"></div>
       </div>
+      <details class="card calc" id="calcBox">
+        <summary>חשב לי יעד לפי הגוף שלי</summary>
+        <div class="calcIn">
+          <div class="field"><span class="lbl">מין</span><div class="chips" id="cSex"><button class="chip" data-v="m" type="button">גבר</button><button class="chip" data-v="f" type="button">אישה</button></div></div>
+          <div class="calcGrid">
+            <label class="field"><span class="lbl">גיל</span><input class="inp num" id="cAge" type="number" inputmode="numeric" min="14" max="99"></label>
+            <label class="field"><span class="lbl">גובה (ס״מ)</span><input class="inp num" id="cH" type="number" inputmode="numeric" min="120" max="230"></label>
+            <label class="field"><span class="lbl">משקל (ק״ג)</span><input class="inp num" id="cW" type="number" inputmode="decimal" step="0.1" min="30" max="300"></label>
+          </div>
+          <label class="field"><span class="lbl">רמת פעילות</span><select class="inp" id="cAct">
+            <option value="1.2">כמעט בלי פעילות (ישיבה רוב היום)</option>
+            <option value="1.375">קלה: 1–3 אימונים בשבוע</option>
+            <option value="1.55">בינונית: 3–5 אימונים בשבוע</option>
+            <option value="1.725">גבוהה: 6–7 אימונים בשבוע</option>
+            <option value="1.9">גבוהה מאוד: עבודה פיזית ואימונים</option>
+          </select></label>
+          <div class="field"><span class="lbl">מטרה</span><div class="chips" id="cGoal"><button class="chip" data-v="lose" type="button">ירידה במשקל</button><button class="chip" data-v="keep" type="button">שמירה</button><button class="chip" data-v="gain" type="button">עלייה במסה</button></div></div>
+          <div class="calcOut" id="calcOut"></div>
+          <button class="btn" id="calcApply" type="button" disabled>החל על היעדים היומיים</button>
+        </div>
+      </details>
       <div id="keyBox">
         <div class="secHead"><h2>זיהוי תמונות</h2></div>
         <div class="card" style="display:flex;flex-direction:column;gap:10px">
@@ -422,6 +478,12 @@ textarea:focus,.inp:focus{border-color:var(--accent)}
     <button data-v="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>יעדים</button>
   </nav>
   <div class="toast" id="toast"></div>
+  <div class="scanner" id="scanner" hidden role="dialog" aria-modal="true" aria-label="סריקת ברקוד">
+    <div class="scanTop"><b>סריקת ברקוד</b><button id="scanClose" type="button" aria-label="סגור">✕</button></div>
+    <div class="scanView"><video id="scanVideo" playsinline muted autoplay></video><div class="scanFrame"></div></div>
+    <p class="scanMsg" id="scanMsg" role="status">כוון את הברקוד למסגרת</p>
+    <form class="scanManual" id="scanManual"><input class="inp num" id="scanCode" inputmode="numeric" autocomplete="off" placeholder="או הקלד את המספר שמתחת לברקוד" dir="ltr"><button class="btn" type="submit">חפש</button></form>
+  </div>
 </div>
 
 <script>
@@ -761,14 +823,15 @@ function show(v){
   view=v;document.querySelectorAll('.view').forEach(el=>el.hidden=el.id!=='v-'+v);
   document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
   if(v==='weight')renderWeight();
-  if(v==='settings'){renderSettings();renderServerBox();if(SERVER&&Date.now()-healthAt>5000)checkServer()}
-  if(v==='add'){const h=$('#dayHint'),tk=dkey();h.hidden=day===tk;if(day!==tk)h.textContent=`הארוחה תירשם ל${day===addDays(tk,-1)?'אתמול':fmtDate(day)} (היום שנבחר במסך הראשי)`}
+  if(v==='settings'){renderSettings();renderCalc();renderServerBox();if(SERVER&&Date.now()-healthAt>5000)checkServer()}
+  if(v==='add'){renderRecent();const h=$('#dayHint'),tk=dkey();h.hidden=day===tk;if(day!==tk)h.textContent=`הארוחה תירשם ל${day===addDays(tk,-1)?'אתמול':fmtDate(day)} (היום שנבחר במסך הראשי)`}
   try{localStorage.setItem('bis.view',v)}catch(e){}
 }
 $('#tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)});
 let toastT;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),m.length>40?4000:2000)}
 
 /* ---------- UI: today ---------- */
+const ICON_REPEAT='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12"/><path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/></svg>';
 const ICON_DISH='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="7"/><path d="M3 13h1M20 13h1M12 4v2"/></svg>';
 function renderToday(){
   const g=S.settings,ms=S.meals.filter(m=>m.date===day),t=sum(ms);
@@ -798,10 +861,18 @@ function renderToday(){
       <div class="meal"><div class="thumb" ${m.thumb?`style="background-image:url(${m.thumb})"`:''}>${m.thumb?'':ICON_DISH}</div>
       <div class="mealMain"><b>${esc(m.name)}</b><small class="num"><span class="p">ח ${r0(m.protein)}</span><span class="f">ש ${r0(m.fat)}</span><span class="c">פ ${r0(m.carbs)}</span></small></div>
       <div class="mealK num">${r0(m.kcal)}<small>קק״ל</small></div>
+      <button class="rep" data-rep="${m.id}" aria-label="הוסף שוב להיום" title="הוסף שוב להיום">${ICON_REPEAT}</button>
       <button class="del" data-del="${m.id}" aria-label="מחק ארוחה"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>`).join('');
   }).join('');
 }
-$('#meals').addEventListener('click',e=>{const b=e.target.closest('[data-del]');if(!b)return;S.meals=S.meals.filter(m=>m.id!==b.dataset.del);persist();renderToday();toast('הארוחה נמחקה')});
+function repeatMeal(id){
+  const m=S.meals.find(x=>x.id===id);if(!m)return;
+  const copy={...m,items:m.items.map(x=>({...x})),id:uid(),date:dkey(),ts:Date.now()};
+  leaveDemo();S.meals.push(copy);persist();renderToday();renderRecent();
+  toast(day===dkey()?'נוסף שוב להיום':'נוסף להיום');
+}
+$('#meals').addEventListener('click',e=>{const rb=e.target.closest('[data-rep]');if(rb){repeatMeal(rb.dataset.rep);return}
+  const b=e.target.closest('[data-del]');if(!b)return;S.meals=S.meals.filter(m=>m.id!==b.dataset.del);persist();renderToday();toast('הארוחה נמחקה')});
 $('#dayPrev').onclick=()=>{day=addDays(day,-1);renderToday()};
 $('#dayNext').onclick=()=>{if(day<dkey()){day=addDays(day,1);renderToday()}};
 document.querySelectorAll('.clearDemo').forEach(b=>b.onclick=()=>{leaveDemo();persist();renderAll();if(view==='weight')renderWeight();toast('מתחילים מאפס')});
@@ -882,7 +953,143 @@ $('#save').onclick=()=>{
   const items=pending.items.map(({base,...x})=>x);
   S.meals.push({id:uid(),date:day>dkey()?dkey():day,ts:Date.now(),meal:mealType,name:pending.title.trim()||'ארוחה',items,thumb:photoThumb||undefined,...sum(items)});
   persist();pending=null;clearPhoto();$('#desc').value='';updAnalyze();renderResult();
-  renderToday();show('today');toast('נוסף ליומן');
+  renderToday();renderRecent();show('today');toast('נוסף ליומן');
+};
+
+/* ---------- recent meals: add again without AI ---------- */
+function recentMeals(){
+  const seen=new Set(),out=[];
+  for(const m of S.meals.slice().sort((a,b)=>b.ts-a.ts)){
+    const k=m.name.trim();if(!k||seen.has(k))continue;seen.add(k);out.push(m);if(out.length>=8)break;
+  }
+  return out;
+}
+function renderRecent(){
+  const list=recentMeals();$('#recentBox').hidden=!list.length;
+  const lbl=Object.fromEntries(MEALS);
+  $('#recent').innerHTML=list.map(m=>`<button class="recentRow" type="button" data-recent="${m.id}">
+    <div class="thumb" ${m.thumb?`style="background-image:url(${m.thumb})"`:''}>${m.thumb?'':ICON_DISH}</div>
+    <div class="mealMain"><b>${esc(m.name)}</b><small class="num">${r0(m.kcal)} קק״ל · ${lbl[m.meal]||''}</small></div>
+    <span class="plus">${ICON_REPEAT}</span></button>`).join('');
+}
+$('#recent').addEventListener('click',e=>{
+  const b=e.target.closest('[data-recent]');if(!b)return;const m=S.meals.find(x=>x.id===b.dataset.recent);if(!m)return;
+  clearPhoto();photoThumb=m.thumb||null;setStatus('');
+  pending={title:m.name,note:'אותה ארוחה כמו קודם. אפשר לשנות גרמים לפני השמירה.',items:m.items.map(x=>it(x.name,x.grams,x.kcal,x.protein,x.fat,x.carbs))};
+  renderResult();
+});
+
+/* ---------- barcode: live camera scan + Open Food Facts ---------- */
+const num=v=>Math.max(0,Number(v)||0);
+let scanStream=null,scanTimer=0,scanBusy=false,detector=null,zx=null;
+const scanCanvas=document.createElement('canvas');
+const scanMsg=m=>{$('#scanMsg').textContent=m};
+function loadZXing(){
+  if(zx)return Promise.resolve();
+  return new Promise((res,rej)=>{
+    if(window.ZXing)return res();
+    const sc=document.createElement('script');sc.src='vendor/zxing.min.js';sc.onload=()=>res();sc.onerror=()=>rej(new Error('zxing'));document.head.appendChild(sc);
+  }).then(()=>{
+    const Z=window.ZXing,h=new Map();
+    h.set(Z.DecodeHintType.POSSIBLE_FORMATS,[Z.BarcodeFormat.EAN_13,Z.BarcodeFormat.EAN_8,Z.BarcodeFormat.UPC_A,Z.BarcodeFormat.UPC_E]);
+    h.set(Z.DecodeHintType.TRY_HARDER,true);
+    zx=new Z.MultiFormatReader();zx.setHints(h);
+  });
+}
+async function openScanner(){
+  $('#scanner').hidden=false;$('#scanCode').value='';scanMsg('מפעיל מצלמה…');
+  if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){scanMsg('אין גישה למצלמה בדפדפן הזה. הקלד את המספר שמתחת לברקוד.');return}
+  try{
+    scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});
+    if($('#scanner').hidden){stopCamera();return}
+    const v=$('#scanVideo');v.srcObject=scanStream;await v.play().catch(()=>{});
+    if(!detector&&'BarcodeDetector' in window){
+      try{const f=await window.BarcodeDetector.getSupportedFormats();const want=['ean_13','ean_8','upc_a','upc_e'].filter(x=>f.includes(x));if(want.length)detector=new window.BarcodeDetector({formats:want})}catch(e){}
+    }
+    if(!detector){scanMsg('טוען סורק…');await loadZXing()}
+    scanMsg('כוון את הברקוד למסגרת');
+    clearInterval(scanTimer);scanTimer=setInterval(scanFrame,250);
+  }catch(e){scanMsg(e&&e.name==='NotAllowedError'?'לא ניתנה הרשאה למצלמה. אפשר להקליד את המספר שמתחת לברקוד.':'לא הצלחתי להפעיל את המצלמה. אפשר להקליד את המספר שמתחת לברקוד.')}
+}
+async function scanFrame(){
+  const v=$('#scanVideo');if(scanBusy||!v.videoWidth)return;scanBusy=true;
+  try{
+    let code=null;
+    if(detector){const r=await detector.detect(v).catch(()=>[]);if(r&&r[0])code=r[0].rawValue}
+    else if(zx){
+      const w=v.videoWidth,h=v.videoHeight,cw=Math.min(w,1000),ch=Math.round(cw*h/w);
+      scanCanvas.width=cw;scanCanvas.height=ch;scanCanvas.getContext('2d',{willReadFrequently:true}).drawImage(v,0,0,cw,ch);
+      try{const Z=window.ZXing;code=zx.decodeWithState(new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.HTMLCanvasElementLuminanceSource(scanCanvas)))).getText()}catch(e){/* no barcode in this frame */}
+    }
+    if(code&&!$('#scanner').hidden){if(navigator.vibrate)navigator.vibrate(60);closeScanner();lookupBarcode(code)}
+  }finally{scanBusy=false}
+}
+function stopCamera(){clearInterval(scanTimer);scanTimer=0;if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null}const v=$('#scanVideo');if(v)v.srcObject=null}
+function closeScanner(){stopCamera();$('#scanner').hidden=true}
+async function lookupBarcode(raw){
+  const code=String(raw||'').replace(/\D/g,'');
+  show('add');
+  if(code.length<8||code.length>14){setStatus('מספר הברקוד צריך להכיל 8 עד 14 ספרות.',true);return}
+  setStatus(`מחפש את המוצר ${code}…`,false,true);
+  try{
+    const r=await fetchT(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,product_name_he,generic_name,brands,nutriments,serving_quantity`,{},15000);
+    const j=await r.json().catch(()=>null);
+    const p=j&&j.status===1&&j.product,n=(p&&p.nutriments)||{};
+    let kcal=num(n['energy-kcal_100g']);if(!kcal&&n.energy_100g)kcal=num(n.energy_100g)/4.184;
+    if(!p||!(kcal||n.proteins_100g||n.carbohydrates_100g||n.fat_100g)){
+      setStatus(`המוצר ${code} לא נמצא במאגר, או שאין לו ערכים תזונתיים. אפשר לצלם את התווית התזונתית שעל האריזה.`,true);return;
+    }
+    const brand=String(p.brands||'').split(',')[0].trim();
+    const name=(String(p.product_name_he||p.product_name||p.generic_name||'מוצר').trim()+(brand?` · ${brand}`:'')).slice(0,60);
+    const g=num(p.serving_quantity)||100,k=g/100;
+    setStatus('');clearPhoto();
+    pending={title:name,note:`ערכים לפי ${p.serving_quantity?`מנה של ${r0(g)} ג׳`:'100 ג׳'} מ-Open Food Facts. שנה את הגרמים לכמות שאכלת.`,
+      items:[it(name,r0(g),r0(kcal*k),r1(num(n.proteins_100g)*k),r1(num(n.fat_100g)*k),r1(num(n.carbohydrates_100g)*k))]};
+    renderResult();
+  }catch(e){setStatus(e&&e.server==='timeout'?'החיפוש לקח יותר מדי זמן. נסה שוב.':'לא הצלחתי להגיע למאגר המוצרים. בדוק חיבור לאינטרנט.',true)}
+}
+// the Claude artifact view can't use the camera or reach the product database
+$('#scanBtn').hidden=!!window.claude;
+$('#scanBtn').onclick=openScanner;
+$('#scanClose').onclick=closeScanner;
+$('#scanManual').addEventListener('submit',e=>{e.preventDefault();const c=$('#scanCode').value;closeScanner();lookupBarcode(c)});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scanner').hidden)closeScanner()});
+
+/* ---------- personal calorie goal (Mifflin-St Jeor) ---------- */
+function calcTargets(p){
+  const age=+p.age,h=+p.h,w=+p.w,act=+p.act;
+  if(!(p.sex&&age>=14&&age<=99&&h>=120&&h<=230&&w>=30&&w<=300&&act&&p.goal))return null;
+  const bmr=10*w+6.25*h-5*age+(p.sex==='m'?5:-161),tdee=bmr*act,floor=p.sex==='m'?1500:1200;
+  const raw=p.goal==='lose'?tdee-500:p.goal==='gain'?tdee+300:tdee;
+  const kcal=Math.round(Math.max(floor,raw)/10)*10;
+  const protein=Math.round(w*(p.goal==='keep'?1.6:1.8));
+  const fat=Math.round(kcal*0.27/9);
+  const carbs=Math.max(0,Math.round((kcal-protein*4-fat*9)/4));
+  return {bmr:Math.round(bmr),tdee:Math.round(tdee),kcal,protein,fat,carbs,floored:raw<floor};
+}
+const calcProfile=()=>S.settings.profile||(S.settings.profile={});
+function renderCalc(){
+  const p=calcProfile();
+  if(!p.w){const W=S.weights.slice().sort((a,b)=>a.date<b.date?-1:1);if(W.length&&!S.demo)p.w=W[W.length-1].kg}
+  document.querySelectorAll('#cSex .chip').forEach(c=>c.classList.toggle('on',c.dataset.v===p.sex));
+  document.querySelectorAll('#cGoal .chip').forEach(c=>c.classList.toggle('on',c.dataset.v===p.goal));
+  $('#cAge').value=p.age||'';$('#cH').value=p.h||'';$('#cW').value=p.w||'';$('#cAct').value=p.act||'1.375';
+  const t=calcTargets({...p,act:p.act||'1.375'}),f=n=>n.toLocaleString('he-IL');
+  $('#calcApply').disabled=!t;
+  $('#calcOut').innerHTML=!t?'':`<div>חילוף חומרים במנוחה: <b class="num">${f(t.bmr)}</b> · שריפה יומית משוערת: <b class="num">${f(t.tdee)}</b></div>
+    <div>יעד יומי: <b class="num">${f(t.kcal)} קק״ל</b>${p.goal==='lose'?(t.floored?' (לא יורדים מתחת למינימום הבטוח)':' (פחות 500 ביום, כחצי ק״ג בשבוע)'):p.goal==='gain'?' (פלוס 300 ביום)':''}</div>
+    <div class="macroLine num"><span style="color:var(--pro)">חלבון ${t.protein} ג׳</span><span style="color:var(--fat)">שומן ${t.fat} ג׳</span><span style="color:var(--carb)">פחמימה ${t.carbs} ג׳</span></div>
+    <div class="hint">הערכה לפי נוסחת Mifflin-St Jeor. היא לא מחליפה ייעוץ של תזונאי.</div>`;
+}
+function calcSave(){persist();renderCalc()}
+$('#cSex').onclick=e=>{const c=e.target.closest('.chip');if(c){calcProfile().sex=c.dataset.v;calcSave()}};
+$('#cGoal').onclick=e=>{const c=e.target.closest('.chip');if(c){calcProfile().goal=c.dataset.v;calcSave()}};
+[['#cAge','age'],['#cH','h'],['#cW','w']].forEach(([id,k])=>$(id).addEventListener('input',e=>{const v=parseFloat(e.target.value);calcProfile()[k]=isNaN(v)?undefined:v;persist();renderCalc()}));
+$('#cAct').addEventListener('change',e=>{calcProfile().act=e.target.value;calcSave()});
+$('#calcApply').onclick=()=>{
+  const p=calcProfile(),t=calcTargets({...p,act:p.act||'1.375'});if(!t)return;
+  p.act=p.act||'1.375';Object.assign(S.settings,{kcal:t.kcal,protein:t.protein,fat:t.fat,carbs:t.carbs});
+  persist();renderSettings();renderToday();toast('היעדים היומיים עודכנו');
 };
 
 /* ---------- UI: weight ---------- */
@@ -989,7 +1196,7 @@ $('#ownTest').onclick=()=>ownerAction('testkey');
 $('#ownerBox').addEventListener('toggle',e=>{e.currentTarget.dataset.touched='1'});
 let lastToday=dkey();
 document.addEventListener('visibilitychange',()=>{
-  if(document.hidden)return;
+  if(document.hidden){if(!$('#scanner').hidden)closeScanner();return}
   const t=dkey();
   if(t!==lastToday){if(day===lastToday)day=t;lastToday=t;if(!pending)mealType=mealByHour();$('#wDate').value=t;$('#wDate').max=t;renderAll()}
   if(SERVER&&Date.now()-healthAt>60000)checkServer();
