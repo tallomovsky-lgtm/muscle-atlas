@@ -7,9 +7,9 @@
 //           MODEL            default claude-opus-5-5 (claude-haiku-5-5 is much cheaper)
 //           DAILY_PER_USER   requests per phone per day, default 6
 //           DAILY_PER_IP     requests per network address per day, default 20
-//           DAILY_TOTAL      requests for everyone together per day, default 12
+//           DAILY_TOTAL      requests for everyone together per day, default 30
 
-const VERSION = 6;
+const VERSION = 7;
 const DEFAULT_ORIGINS = 'https://tallomovsky-lgtm.github.io';
 const MAX_IMAGE_B64 = 3_000_000; // ~2.2 MB jpeg; the app sends ~100-300 KB
 const MAX_DESC = 600;
@@ -57,7 +57,7 @@ function limitsOf(env) {
   return {
     user: Number(env.DAILY_PER_USER) || 6,
     ip: Number(env.DAILY_PER_IP) || 20,
-    total: Number(env.DAILY_TOTAL) || 12,
+    total: Number(env.DAILY_TOTAL) || 30,
   };
 }
 // Reserves one request before calling Claude. Released again when Claude never answered
