@@ -242,7 +242,7 @@ textarea:focus,.inp:focus{border-color:var(--accent)}
 .tabs .fab span{width:54px;height:54px;margin-top:-26px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;box-shadow:0 0 0 5px var(--bg),var(--shadow)}
 .tabs .fab svg{width:26px;height:26px}
 
-.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 92px);transform:translateX(-50%) translateY(20px);opacity:0;pointer-events:none;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:700;font-size:14px;transition:.25s;z-index:20;white-space:nowrap}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 92px);transform:translateX(-50%) translateY(20px);opacity:0;pointer-events:none;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:16px;font-weight:700;font-size:14px;transition:.25s;z-index:20;width:max-content;max-width:calc(100vw - 32px);text-align:center}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 @media (max-width:380px){.plateWrap{grid-template-columns:1fr;justify-items:center}.macros{width:100%}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
@@ -477,12 +477,17 @@ async function initRuntime(){
 /* ---------- food analysis ---------- */
 let sample=null,sampleImages=false;
 const SERVER=String(window.BIS_SERVER||'').replace(/\/+$/,'');
+let DEVICE='';try{DEVICE=localStorage.getItem('bis.did')||'';if(!DEVICE){DEVICE=Date.now().toString(36)+Math.random().toString(36).slice(2,12);localStorage.setItem('bis.did',DEVICE)}}catch(e){DEVICE=Date.now().toString(36)+Math.random().toString(36).slice(2,12)}
+let quota=null;try{quota=JSON.parse(localStorage.getItem('bis.quota')||'null')}catch(e){}
+// text-only meals on the shared server go to the local food table first, to save the owner's API spend
+const viaServer=img=>!!SERVER&&!S.settings.apiKey&&!(sample&&(!img||sampleImages));
 const aiAvailable=img=>(sample&&(!img||sampleImages))||!!SERVER||!!S.settings.apiKey;
 function renderEngine(){
   const on=(sample&&sampleImages)||!!SERVER||!!S.settings.apiKey;
   const e=$('#engine');e.classList.toggle('on',on);e.querySelector('span').textContent=on?'זיהוי AI פעיל':(sample?'AI לטקסט':'מצב בסיסי');
   $('#keyBox').hidden=!!((sample&&sampleImages)||SERVER);
   $('#shotSub').textContent=on?'או בחר תמונה שכבר צילמת':'זיהוי תמונה דורש מפתח AI ביעדים';
+  if(SERVER&&quota&&quota.date===dkey())$('#shotSub').textContent=quota.left>0?`נשארו לך היום ${quota.left} זיהויי תמונה`:'נגמרו זיהויי התמונה להיום. אפשר עדיין להוסיף בכתב';
 }
 
 function promptFor(desc,hasImg){
@@ -496,6 +501,7 @@ If there is no food, return {"title":"","items":[],"note":"<Hebrew explanation>"
 function parseJSON(t){const a=t.indexOf('{'),b=t.lastIndexOf('}');if(a<0||b<a)throw new Error('bad');return JSON.parse(t.slice(a,b+1))}
 async function blobToB64(b){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=rej;r.readAsDataURL(b)})}
 
+function saveQuota(){try{localStorage.setItem('bis.quota',JSON.stringify(quota))}catch(e){}renderEngine()}
 async function aiAnalyze(desc,blob){
   const prompt=promptFor(desc,!!blob);
   if(sample&&(!blob||sampleImages)){
@@ -504,9 +510,11 @@ async function aiAnalyze(desc,blob){
     return parseJSON(out.text);
   }
   if(SERVER&&!S.settings.apiKey){
-    const r=await fetch(SERVER+'/analyze',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({desc,image:blob?await blobToB64(blob):undefined})});
-    if(!r.ok){const e=new Error('server');e.status=r.status;if(r.status===429)e.code='rate_limited';throw e}
-    return r.json();
+    const r=await fetch(SERVER+'/analyze',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({desc,device:DEVICE,image:blob?await blobToB64(blob):undefined})});
+    if(!r.ok){const e=new Error('server');e.status=r.status;if(r.status===429){const j=await r.json().catch(()=>({}));e.code='rate_limited';e.scope=j.scope;e.limit=j.limit;if(j.scope==='user'){quota={date:dkey(),left:0,limit:j.limit};saveQuota()}}throw e}
+    const j=await r.json();
+    if(j.quota){quota={date:dkey(),left:j.quota.left,limit:j.quota.limit};saveQuota()}
+    return j;
   }
   const content=[];
   if(blob)content.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:await blobToB64(blob)}});
@@ -601,7 +609,7 @@ function show(v){
   try{localStorage.setItem('bis.view',v)}catch(e){}
 }
 $('#tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)});
-let toastT;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),2000)}
+let toastT;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),m.length>40?4000:2000)}
 
 /* ---------- UI: today ---------- */
 const ICON_DISH='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="7"/><path d="M3 13h1M20 13h1M12 4v2"/></svg>';
@@ -671,11 +679,12 @@ $('#analyze').onclick=async()=>{
   $('#analyze').disabled=true;
   let res=null;
   try{
-    if(aiAvailable(!!photoBlob)){setStatus(photoBlob?'מזהה את האוכל בתמונה…':'מחשב ערכים…',false,true);res=await aiAnalyze(desc,aiAvailable(true)?photoBlob:null)}
+    if(!photoBlob&&desc&&viaServer(false)){const loc=localAnalyze(desc);if(loc.items.length)res=loc}
+    if(!res&&aiAvailable(!!photoBlob)){setStatus(photoBlob?'מזהה את האוכל בתמונה…':'מחשב ערכים…',false,true);res=await aiAnalyze(desc,aiAvailable(true)?photoBlob:null)}
   }catch(e){
-    const msg=e&&e.status===401?'מפתח ה-API לא תקין. בדוק אותו במסך יעדים.':e&&e.code==='not_granted'?'לא ניתנה הרשאה לשימוש ב-Claude.':e&&e.code==='rate_limited'?'יותר מדי בקשות. נסה שוב בעוד דקה.':'הזיהוי נכשל.';
-    if(!desc){setStatus(msg,true);updAnalyze();return}
-    toast(msg+' עובר למאגר המקומי');
+    const msg=e&&e.status===401?'מפתח ה-API לא תקין. בדוק אותו במסך יעדים.':e&&e.code==='not_granted'?'לא ניתנה הרשאה לשימוש ב-Claude.':e&&e.code==='rate_limited'?(e.scope==='all'?'מכסת זיהויי התמונה של היום נגמרה. מחר זה מתאפס.':e.scope==='user'?`השתמשת היום בכל ${e.limit} זיהויי התמונה. מחר זה מתאפס.`:'יותר מדי בקשות. נסה שוב בעוד דקה.'):'הזיהוי נכשל. בדוק חיבור לאינטרנט ונסה שוב.';
+    if(!desc){setStatus(msg+(e&&e.code==='rate_limited'?' בינתיים אפשר לכתוב מה אכלת.':''),true);updAnalyze();return}
+    toast(msg+' מחשב לפי מה שכתבת.');
   }
   if(!res||!res.items||!res.items.length){
     if(desc){const loc=localAnalyze(desc);if(loc.items.length)res=loc;else if(!res)res=loc}
