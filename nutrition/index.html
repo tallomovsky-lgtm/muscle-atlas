@@ -593,11 +593,16 @@ function renderEngine(){
 }
 
 function promptFor(desc,hasImg){
-  return `You are a precise nutrition estimator. ${hasImg?'Look at the attached food photo.':''}
-${desc?`The user describes the food as: """${desc.slice(0,600)}""" — trust this description for food identity and quantities when it conflicts with the photo.`:''}
-Identify each distinct food item, estimate the eaten portion in grams, and estimate calories (kcal), protein, fat and carbohydrates in grams for that portion. Account for visible oil, sauces and dressings. Typical Israeli foods are common (pita, hummus, schnitzel, shakshuka, salads, tahini, bourekas).
-Reply with ONLY a JSON object, no other text:
-{"title":"<short Hebrew name for the whole meal>","items":[{"name":"<Hebrew name>","grams":<number>,"kcal":<number>,"protein":<number>,"fat":<number>,"carbs":<number>}],"note":"<one short Hebrew sentence on the main assumption, e.g. portion size or cooking oil>"}
+  return `You are an experienced dietitian estimating the nutrition of a meal ${hasImg?'from the attached photo':'from a description'}.
+${desc?`The user says: """${desc.slice(0,600)}""". Trust this for what the food is and how much of it there is when it conflicts with the photo.`:''}
+Think it through before answering:
+1. List every food and drink, including liquids (milk, juice, soup), toppings, spreads, cooking oil, sauces and dressings. In Israel milk is usually 3% fat.
+2. Estimate the whole portion shown and assume all of it is eaten. Judge size from the dish (dinner plate about 26 cm, cereal bowl about 15 cm, glass about 250 ml), cutlery and hands. When unsure, use the typical adult serving rather than the smallest plausible one: photo estimates usually come out too low, not too high.
+3. Use standard nutrition tables (USDA, Israeli food composition tables) with cooked or ready-to-eat weights.
+Typical servings for reference: a bowl of breakfast cereal 50-60 g with about 200 ml milk; a plate of cooked pasta or rice 200-250 g; a schnitzel 150-180 g; a pita 90-110 g; a plate of hummus 150-250 g; a shakshuka with 2 eggs and about 150 g sauce; 1 tablespoon of oil 13 g = 117 kcal.
+Typical Israeli foods are common (pita, hummus, schnitzel, shakshuka, salads, tahini, bourekas, sushi).
+Then reply with ONLY a JSON object, no other text:
+{"title":"<short Hebrew name for the whole meal>","items":[{"name":"<Hebrew name>","grams":<number>,"kcal":<number>,"protein":<number>,"fat":<number>,"carbs":<number>}],"note":"<one short Hebrew sentence with the portion sizes you assumed, so the user can correct them>"}
 If there is no food, return {"title":"","items":[],"note":"<Hebrew explanation>"}.`;
 }
 function parseJSON(t){const a=t.indexOf('{'),b=t.lastIndexOf('}');if(a<0||b<a)throw new Error('bad');return JSON.parse(t.slice(a,b+1))}
@@ -663,7 +668,7 @@ async function aiAnalyze(desc,blob){
   const content=[];
   if(blob)content.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:await blobToB64(blob)}});
   content.push({type:'text',text:prompt});
-  const r=await fetchT('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':S.settings.apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-opus-5-5',max_tokens:16000,output_config:{effort:'low'},messages:[{role:'user',content}]})},90000);
+  const r=await fetchT('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':S.settings.apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-opus-5-5',max_tokens:16000,output_config:{effort:'medium'},messages:[{role:'user',content}]})},90000);
   const j=await r.json().catch(()=>null);
   if(!r.ok){
     const m=String(j&&j.error&&j.error.message||'');
