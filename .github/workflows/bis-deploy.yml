@@ -20,6 +20,10 @@ on:
         description: 'Optional JPEG (base64) for the recognition test'
         type: string
         default: ''
+      test_image_path:
+        description: 'Optional JPEG path in the repo for the recognition test'
+        type: string
+        default: ''
 concurrency: bis-deploy
 jobs:
   deploy:
@@ -89,7 +93,9 @@ jobs:
         env:
           TEST_DESC: ${{ inputs.test_desc }}
           TEST_IMAGE: ${{ inputs.test_image_b64 }}
+          TEST_IMAGE_PATH: ${{ inputs.test_image_path }}
         run: |
+          if [ -n "$TEST_IMAGE_PATH" ]; then export TEST_IMAGE=$(base64 -w0 "$TEST_IMAGE_PATH"); fi
           python3 -c "import json,os;b={'desc':os.environ.get('TEST_DESC',''),'device':'ghdeploy001'};i=os.environ.get('TEST_IMAGE','');b.update({'image':i} if i else {});print(json.dumps(b))" > body.json
           curl -sS -m 120 -w '\nHTTP %{http_code}  time %{time_total}s\n' -X POST \
             -H "Origin: $ORIGIN" -H "content-type: application/json" \
