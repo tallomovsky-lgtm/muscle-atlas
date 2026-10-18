@@ -12,6 +12,14 @@ on:
         description: 'Also run one real recognition (about 1 cent)'
         type: boolean
         default: false
+      test_desc:
+        description: 'Text for the recognition test'
+        type: string
+        default: 'ביצה קשה אחת ופרוסת לחם'
+      test_image_b64:
+        description: 'Optional JPEG (base64) for the recognition test'
+        type: string
+        default: ''
 concurrency: bis-deploy
 jobs:
   deploy:
@@ -78,8 +86,13 @@ jobs:
           exit 1
       - name: Real recognition test
         if: ${{ inputs.live_test }}
+        env:
+          TEST_DESC: ${{ inputs.test_desc }}
+          TEST_IMAGE: ${{ inputs.test_image_b64 }}
         run: |
+          python3 -c "import json,os;b={'desc':os.environ.get('TEST_DESC',''),'device':'ghdeploy001'};i=os.environ.get('TEST_IMAGE','');b.update({'image':i} if i else {});print(json.dumps(b))" > body.json
           curl -sS -m 120 -w '\nHTTP %{http_code}  time %{time_total}s\n' -X POST \
             -H "Origin: $ORIGIN" -H "content-type: application/json" \
-            --data '{"desc":"ביצה קשה אחת ופרוסת לחם","device":"ghdeploy001"}' "$SERVER/analyze" | tee out.txt
+            --data @body.json "$SERVER/analyze" | tee out.txt
           grep -q '"items"' out.txt
+          python3 -c "import json;j=json.loads(open('out.txt').read().split(chr(10))[0]);print('TOTAL kcal',round(sum(x['kcal'] for x in j['items'])),'| P',round(sum(x['protein'] for x in j['items']),1),'F',round(sum(x['fat'] for x in j['items']),1),'C',round(sum(x['carbs'] for x in j['items']),1))"
