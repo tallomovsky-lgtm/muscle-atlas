@@ -13,9 +13,9 @@ on:
         type: boolean
         default: false
       test_desc:
-        description: 'Text for the recognition test'
+        description: 'Text for the recognition test (empty with no image: a default meal)'
         type: string
-        default: 'ביצה קשה אחת ופרוסת לחם'
+        default: ''
       test_image_b64:
         description: 'Optional JPEG (base64) for the recognition test'
         type: string
@@ -96,7 +96,7 @@ jobs:
           TEST_IMAGE_PATH: ${{ inputs.test_image_path }}
         run: |
           if [ -n "$TEST_IMAGE_PATH" ]; then export TEST_IMAGE=$(base64 -w0 "$TEST_IMAGE_PATH"); fi
-          python3 -c "import json,os;b={'desc':os.environ.get('TEST_DESC',''),'device':'ghdeploy001'};i=os.environ.get('TEST_IMAGE','');b.update({'image':i} if i else {});print(json.dumps(b))" > body.json
+          python3 -c "import json,os;i=os.environ.get('TEST_IMAGE','');d=os.environ.get('TEST_DESC','').strip() or ('' if i else 'ביצה קשה אחת ופרוסת לחם');b={'desc':d,'device':'ghdeploy001'};b.update({'image':i} if i else {});print('desc:',repr(d),'image chars:',len(i),file=__import__('sys').stderr);print(json.dumps(b))" > body.json
           curl -sS -m 120 -w '\nHTTP %{http_code}  time %{time_total}s\n' -X POST \
             -H "Origin: $ORIGIN" -H "content-type: application/json" \
             --data @body.json "$SERVER/analyze" | tee out.txt
