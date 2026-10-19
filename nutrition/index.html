@@ -22,7 +22,7 @@
   --bg:#F2F4F0;--surface:#FFFFFF;--surface2:#E9EDE7;--line:#DAE0D7;
   --ink:#14201A;--ink2:#3C4A42;--muted:#6F7D75;
   --accent:#0E7C5A;--accent-ink:#FFFFFF;--accent-soft:rgba(14,124,90,.11);
-  --pro:#4F5BD5;--fat:#C98318;--carb:#D24C69;
+  --pro:#4F5BD5;--fat:#C98318;--carb:#D24C69;--fib:#7A6A2E;
   --down:#15803D;--up:#C2410C;--danger:#B42318;
   --shadow:0 8px 28px rgba(20,32,26,.10);--scrim:rgba(10,16,13,.4);
   --f-display:"Suez One","Assistant",Georgia,serif;
@@ -32,14 +32,14 @@
   --bg:#0D1311;--surface:#151D1A;--surface2:#1C2622;--line:#27332E;
   --ink:#EDF3EF;--ink2:#C2CDC7;--muted:#879690;
   --accent:#4CCB9B;--accent-ink:#06150F;--accent-soft:rgba(76,203,155,.14);
-  --pro:#8F98FF;--fat:#EFB257;--carb:#FF8099;
+  --pro:#8F98FF;--fat:#EFB257;--carb:#FF8099;--fib:#CDBB6E;
   --down:#4ADE80;--up:#FB923C;--danger:#F97066;
   --shadow:0 8px 28px rgba(0,0,0,.45);--scrim:rgba(0,0,0,.6);color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0D1311;--surface:#151D1A;--surface2:#1C2622;--line:#27332E;
   --ink:#EDF3EF;--ink2:#C2CDC7;--muted:#879690;
   --accent:#4CCB9B;--accent-ink:#06150F;--accent-soft:rgba(76,203,155,.14);
-  --pro:#8F98FF;--fat:#EFB257;--carb:#FF8099;
+  --pro:#8F98FF;--fat:#EFB257;--carb:#FF8099;--fib:#CDBB6E;
   --down:#4ADE80;--up:#FB923C;--danger:#F97066;
   --shadow:0 8px 28px rgba(0,0,0,.45);--scrim:rgba(0,0,0,.6);color-scheme:dark}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -106,7 +106,7 @@ input,textarea{font:inherit;color:inherit}
 .mac em b{color:var(--ink);font-weight:800}
 .bar{grid-column:1/-1;height:6px;border-radius:3px;background:var(--surface2);overflow:hidden}
 .bar div{height:100%;border-radius:3px;transition:width .6s}
-.c-pro{background:var(--pro)}.c-fat{background:var(--fat)}.c-carb{background:var(--carb)}
+.c-pro{background:var(--pro)}.c-fat{background:var(--fat)}.c-carb{background:var(--carb)}.c-fib{background:var(--fib)}
 
 /* meals */
 .mealGroup{display:flex;flex-direction:column;gap:8px}
@@ -117,7 +117,7 @@ input,textarea{font:inherit;color:inherit}
 .mealMain{flex:1;min-width:0}
 .mealMain b{display:block;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mealMain small{display:flex;gap:10px;color:var(--muted);font-size:12.5px;font-weight:600}
-.mealMain small .p{color:var(--pro)}.mealMain small .f{color:var(--fat)}.mealMain small .c{color:var(--carb)}
+.mealMain small .i{color:var(--fib)}.mealMain small .p{color:var(--pro)}.mealMain small .f{color:var(--fat)}.mealMain small .c{color:var(--carb)}
 .mealK{font-family:var(--f-display);font-size:19px;flex:none;text-align:center;line-height:1}
 .mealK small{display:block;font-family:var(--f-body);font-size:11px;color:var(--muted);font-weight:600}
 .del{width:30px;height:30px;border-radius:50%;flex:none;display:grid;place-items:center;color:var(--muted)}
@@ -197,12 +197,12 @@ textarea:focus,.inp:focus{border-color:var(--accent)}
 .resHead b{font-size:16px}
 .resHead span{font-family:var(--f-display);font-size:28px;line-height:1}
 .resHead span small{font-family:var(--f-body);font-size:13px;color:var(--muted)}
-.totals{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.tot{border-radius:14px;padding:10px;background:var(--surface2);display:flex;flex-direction:column;gap:2px}
+.totals{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.tot{border-radius:14px;padding:10px 8px;background:var(--surface2);display:flex;flex-direction:column;gap:2px}
 .tot small{font-size:12px;font-weight:700}
-.tot b{font-family:var(--f-display);font-weight:400;font-size:22px;line-height:1.1}
+.tot b{font-family:var(--f-display);font-weight:400;font-size:20px;line-height:1.1}
 .tot b em{font-family:var(--f-body);font-style:normal;font-size:12px;color:var(--muted);font-weight:600}
-.tot.p small{color:var(--pro)}.tot.f small{color:var(--fat)}.tot.c small{color:var(--carb)}
+.tot.i small{color:var(--fib)}.tot.p small{color:var(--pro)}.tot.f small{color:var(--fat)}.tot.c small{color:var(--carb)}
 .items{display:flex;flex-direction:column}
 .item{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:10px 0;border-top:1px solid var(--line);align-items:center}
 .item:first-child{border-top:0}
@@ -210,6 +210,10 @@ textarea:focus,.inp:focus{border-color:var(--accent)}
 .item .g{display:flex;align-items:center;gap:4px;font-size:13px;color:var(--muted)}
 .item .g input{width:64px;height:32px;border:1px solid var(--line);border-radius:10px;background:var(--surface2);text-align:center;font-size:15px;font-weight:700}
 .item small{grid-column:1/-1;color:var(--muted);font-size:12.5px;display:flex;gap:10px;flex-wrap:wrap}
+.fixLink{color:var(--accent);font-weight:700;font-size:14px;text-align:center;padding:4px}
+.fixRow{display:flex;gap:8px}
+.fixRow .inp{flex:1;min-width:0;height:46px;padding:0 12px}
+.fixRow .btn{width:auto;padding:0 16px;height:46px;font-size:15px}
 .note{font-size:13px;color:var(--ink2);background:var(--surface2);border-radius:12px;padding:10px 12px}
 
 /* weight */
@@ -323,6 +327,7 @@ textarea:focus,.inp:focus{border-color:var(--accent)}
           <div class="mac"><span><i class="c-pro"></i>חלבון</span><em class="num"><b id="mP">0</b> / <span id="gP"></span> ג׳</em><div class="bar"><div class="c-pro" id="bP"></div></div></div>
           <div class="mac"><span><i class="c-fat"></i>שומן</span><em class="num"><b id="mF">0</b> / <span id="gF"></span> ג׳</em><div class="bar"><div class="c-fat" id="bF"></div></div></div>
           <div class="mac"><span><i class="c-carb"></i>פחמימה</span><em class="num"><b id="mC">0</b> / <span id="gC"></span> ג׳</em><div class="bar"><div class="c-carb" id="bC"></div></div></div>
+          <div class="mac"><span><i class="c-fib"></i>סיבים</span><em class="num"><b id="mI">0</b> / <span id="gI"></span> ג׳</em><div class="bar"><div class="c-fib" id="bI"></div></div></div>
         </div>
       </div>
       <div class="secHead"><h2>ארוחות</h2><span id="mealCount"></span></div>
@@ -369,9 +374,14 @@ textarea:focus,.inp:focus{border-color:var(--accent)}
           <div class="tot p"><small>חלבון</small><b class="num" id="rP">0<em> ג׳</em></b></div>
           <div class="tot f"><small>שומן</small><b class="num" id="rF">0<em> ג׳</em></b></div>
           <div class="tot c"><small>פחמימה</small><b class="num" id="rC">0<em> ג׳</em></b></div>
+          <div class="tot i"><small>סיבים</small><b class="num" id="rI">0<em> ג׳</em></b></div>
         </div>
+        <div class="field"><span class="lbl" style="font-size:13px;font-weight:700;color:var(--ink2)">גודל המנה ביחס למה שזוהה</span>
+          <div class="seg" id="portion"><button type="button" data-f="0.75">קטנה יותר</button><button type="button" data-f="1" class="on">כמו שזוהה</button><button type="button" data-f="1.25">גדולה יותר</button><button type="button" data-f="1.5">הרבה יותר</button></div></div>
         <div class="items" id="items"></div>
         <div class="note" id="resNote" hidden></div>
+        <form class="fixRow" id="fixForm" hidden><input class="inp" id="fixText" autocomplete="off" placeholder="מה זה בדיוק? למשל: כריות שוקולד, קערה גדולה"><button class="btn" type="submit">חשב מחדש</button></form>
+        <button class="fixLink" id="fixBtn" type="button" hidden>זה לא בדיוק מה שאכלתי? תקן וחשב מחדש</button>
         <div class="row2"><button class="btn ghost" id="discard">בטל</button><button class="btn" id="save">הוסף ליומן</button></div>
       </div>
     </section>
@@ -413,6 +423,7 @@ textarea:focus,.inp:focus{border-color:var(--accent)}
         <div class="set"><label for="sP">חלבון<small>גרם ביום</small></label><input class="inp num" id="sP" type="number" inputmode="numeric"></div>
         <div class="set"><label for="sF">שומן<small>גרם ביום</small></label><input class="inp num" id="sF" type="number" inputmode="numeric"></div>
         <div class="set"><label for="sC">פחמימה<small>גרם ביום</small></label><input class="inp num" id="sC" type="number" inputmode="numeric"></div>
+        <div class="set"><label for="sI">סיבים תזונתיים<small>גרם ביום (מומלץ 25–38)</small></label><input class="inp num" id="sI" type="number" inputmode="numeric"></div>
         <div class="set"><label for="sT">משקל יעד<small>ק״ג, מופיע כקו בגרף</small></label><input class="inp num" id="sT" type="number" inputmode="decimal" step="0.1"></div>
       </div>
       <details class="card calc" id="calcBox">
@@ -504,7 +515,7 @@ const HE_DAYS=['ראשון','שני','שלישי','רביעי','חמישי','ש�
 const fmtDate=k=>{const d=parseKey(k);return `יום ${HE_DAYS[d.getDay()]}, ${d.getDate()}.${d.getMonth()+1}`};
 
 /* ---------- state ---------- */
-const DEF={v:1,mig1:true,demo:false,updatedAt:0,settings:{kcal:2000,protein:140,fat:65,carbs:220,target:null,apiKey:''},meals:[],weights:[]};
+const DEF={v:1,mig1:true,demo:false,updatedAt:0,settings:{kcal:2000,protein:140,fat:65,carbs:220,fiber:30,target:null,apiKey:''},meals:[],weights:[]};
 let S=load();
 function load(){
   try{const j=JSON.parse(localStorage.getItem(LS)||'null');if(j&&j.v===1){
@@ -534,14 +545,14 @@ function demoState(){
   }
   const mk=(meal,name,items)=>({id:uid(),date:t,ts:Date.now(),meal,name,items,...sum(items)});
   st.meals=[
-    mk('breakfast','שקשוקה ופיתה',[it('שקשוקה (2 ביצים)',260,240,14,17,10),it('פיתה',90,248,8,1,50)]),
-    mk('lunch','חזה עוף, אורז וסלט',[it('חזה עוף צלוי',150,248,46,5,0),it('אורז לבן',160,208,4,0.5,45),it('סלט ירקות',150,30,1.3,0.3,6)]),
-    mk('snack','יוגורט חלבון',[it('יוגורט חלבון',200,120,20,0,9)])
+    mk('breakfast','שקשוקה ופיתה',[it('שקשוקה (2 ביצים)',260,240,14,17,10,4),it('פיתה',90,248,8,1,50,2)]),
+    mk('lunch','חזה עוף, אורז וסלט',[it('חזה עוף צלוי',150,248,46,5,0,0),it('אורז לבן',160,208,4,0.5,45,0.6),it('סלט ירקות',150,30,1.3,0.3,6,1.8)]),
+    mk('snack','יוגורט חלבון',[it('יוגורט חלבון',200,120,20,0,9,0)])
   ];
   return st;
 }
-function it(name,grams,kcal,protein,fat,carbs){return {name,grams,kcal,protein,fat,carbs,base:{grams,kcal,protein,fat,carbs}}}
-function sum(items){return items.reduce((a,x)=>({kcal:a.kcal+x.kcal,protein:a.protein+x.protein,fat:a.fat+x.fat,carbs:a.carbs+x.carbs}),{kcal:0,protein:0,fat:0,carbs:0})}
+function it(name,grams,kcal,protein,fat,carbs,fiber=0){return {name,grams,kcal,protein,fat,carbs,fiber,base:{grams,kcal,protein,fat,carbs,fiber}}}
+function sum(items){return items.reduce((a,x)=>({kcal:a.kcal+(x.kcal||0),protein:a.protein+(x.protein||0),fat:a.fat+(x.fat||0),carbs:a.carbs+(x.carbs||0),fiber:a.fiber+(x.fiber||0)}),{kcal:0,protein:0,fat:0,carbs:0,fiber:0})}
 
 /* ---------- cloud (artifact db, when available) ---------- */
 let cloud=null,cloudT=0;
@@ -589,21 +600,21 @@ function renderEngine(){
   $('#keyBox').hidden=!!((sample&&sampleImages)||SERVER);
   $('#shotSub').textContent=on?'או בחר תמונה שכבר צילמת':'זיהוי תמונה דורש מפתח AI ביעדים';
   if(bad)$('#shotSub').textContent=healthMsg(health);
-  else if(usesServer&&quota&&quota.date===dkey())$('#shotSub').textContent=quota.left>0?`נשארו לך היום ${quota.left} זיהויי תמונה`:'נגמרו זיהויי התמונה להיום. אפשר עדיין להוסיף בכתב';
+  else if(usesServer&&quota&&quota.date===dkey())$('#shotSub').textContent=quota.left>0?`נשארו לך היום ${quota.left} זיהויים`:'נגמרו הזיהויים להיום. אפשר עדיין להוסיף בכתב מהמאגר';
 }
 
 function promptFor(desc,hasImg){
-  return `You are an experienced dietitian estimating the nutrition of a meal ${hasImg?'from the attached photo':'from a description'}.
-${desc?`The user says: """${desc.slice(0,600)}""". Trust this for what the food is and how much of it there is when it conflicts with the photo.`:''}
-Think it through before answering:
-1. List every food and drink, including liquids (milk, juice, soup), toppings, spreads, cooking oil, sauces and dressings. In Israel milk is usually 3% fat.
-2. Estimate the whole portion shown and assume all of it is eaten. Judge size from the dish (dinner plate about 26 cm, cereal bowl about 15 cm, glass about 250 ml), cutlery and hands. When unsure, use the typical adult serving rather than the smallest plausible one: photo estimates usually come out too low, not too high.
-3. Use standard nutrition tables (USDA, Israeli food composition tables) with cooked or ready-to-eat weights.
-Typical servings for reference: a bowl of breakfast cereal 50-60 g with about 200 ml milk; a plate of cooked pasta or rice 200-250 g; a schnitzel 150-180 g; a pita 90-110 g; a plate of hummus 150-250 g; a shakshuka with 2 eggs and about 150 g sauce; 1 tablespoon of oil 13 g = 117 kcal.
+  return `You are an experienced clinical dietitian. Estimate the nutrition of the meal ${hasImg ? 'in the attached photo' : 'described below'}.
+${desc ? `The user says: """${desc.slice(0,600)}""". Treat this as reliable for what the food is and how much of it there is.` : ''}
+Method:
+1. Identify every food and drink separately, including liquids (milk, juice, soup), toppings, spreads, cooking oil, sauces and dressings. Hidden fat matters: fried or sauteed food usually carries 1-2 tablespoons of oil per portion. In Israel milk is usually 3% fat.
+2. Estimate the weight in grams of each item as served, assuming everything shown is eaten. Use scale cues: dinner plate about 26 cm, side plate about 20 cm, cereal bowl about 15 cm wide and about 400 ml when full, glass about 250 ml, tablespoon 15 ml, fork about 19 cm, an adult hand. Estimate the volume first, then convert to grams by density. When unsure, choose the typical adult serving rather than the smallest plausible one: photo estimates tend to come out too low.
+3. For each item give its nutrition per 100 g as eaten (cooked weights for cooked foods) from standard tables (USDA FoodData Central, the Israeli Tzameret tables). "carbs" means available carbohydrates without fiber, as on Israeli labels; give "fiber" separately.
+Typical servings for reference: a bowl of breakfast cereal 50-60 g with about 200 ml milk; a plate of cooked pasta or rice 200-250 g; a schnitzel 150-180 g; a pita 90-110 g; a plate of hummus 150-250 g; a shakshuka with 2 eggs and about 150 g sauce; an Israeli salad 150-200 g; 1 tablespoon of oil 13 g; 1 tablespoon of tahini 15 g.
 Typical Israeli foods are common (pita, hummus, schnitzel, shakshuka, salads, tahini, bourekas, sushi).
 Then reply with ONLY a JSON object, no other text:
-{"title":"<short Hebrew name for the whole meal>","items":[{"name":"<Hebrew name>","grams":<number>,"kcal":<number>,"protein":<number>,"fat":<number>,"carbs":<number>}],"note":"<one short Hebrew sentence with the portion sizes you assumed, so the user can correct them>"}
-If there is no food, return {"title":"","items":[],"note":"<Hebrew explanation>"}.`;
+{"title":"<short Hebrew name for the meal>","confidence":"<high|medium|low: how sure you are about the amounts>","items":[{"name":"<Hebrew name>","grams":<number>,"per100":{"kcal":<number>,"protein":<number>,"fat":<number>,"carbs":<number>,"fiber":<number>}}],"note":"<one short Hebrew sentence with the portion sizes you assumed, so the user can correct them>"}
+If there is no food, return {"title":"","confidence":"low","items":[],"note":"<Hebrew explanation>"}.`;
 }
 function parseJSON(t){const a=t.indexOf('{'),b=t.lastIndexOf('}');if(a<0||b<a)throw new Error('bad');return JSON.parse(t.slice(a,b+1))}
 async function blobToB64(b){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=rej;r.readAsDataURL(b)})}
@@ -629,7 +640,7 @@ const SERVER_MSG={
 };
 function fail(code,status,detail){const e=new Error(code);e.server=code;e.status=status||0;e.detail=detail||'';return e}
 function errText(e){
-  if(e&&e.code==='rate_limited')return e.scope==='all'?'מכסת זיהויי התמונה של היום נגמרה. מחר זה מתאפס.':e.scope==='user'?`השתמשת היום בכל ${e.limit} זיהויי התמונה. מחר זה מתאפס.`:'יותר מדי בקשות. נסה שוב בעוד דקה.';
+  if(e&&e.code==='rate_limited')return e.scope==='all'?'מכסת הזיהויים של היום נגמרה. מחר זה מתאפס.':e.scope==='user'?`השתמשת היום בכל ${e.limit} הזיהויים. מחר זה מתאפס.`:'יותר מדי בקשות. נסה שוב בעוד דקה.';
   if(e&&e.code==='not_granted')return 'לא ניתנה הרשאה לשימוש ב-Claude.';
   if(e&&e.server==='upstream')return `שגיאה מ-Claude (${e.status})${e.detail?': '+e.detail:''}`;
   if(e&&e.server)return SERVER_MSG[e.server]||`הזיהוי נכשל (${e.server}${e.status?' '+e.status:''}).`;
@@ -668,7 +679,7 @@ async function aiAnalyze(desc,blob){
   const content=[];
   if(blob)content.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:await blobToB64(blob)}});
   content.push({type:'text',text:prompt});
-  const r=await fetchT('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':S.settings.apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-opus-5-5',max_tokens:16000,output_config:{effort:'medium'},messages:[{role:'user',content}]})},90000);
+  const r=await fetchT('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':S.settings.apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-opus-5-5',max_tokens:16000,output_config:{effort:'high'},messages:[{role:'user',content}]})},90000);
   const j=await r.json().catch(()=>null);
   if(!r.ok){
     const m=String(j&&j.error&&j.error.message||'');
@@ -748,28 +759,32 @@ async function ownerAction(action){
   $('#ownSave').disabled=$('#ownTest').disabled=false;
   checkServer();
 }
-/* local food table — per 100 g: kcal, protein, fat, carbs; u = grams per unit/slice/serving */
+/* local food table — per 100 g: kcal, protein, fat, carbs; then grams per unit/slice/serving; then fiber per 100 g */
 const FOODS=[
- [['ביצה','ביצים','ביצה קשה','חביתה'],155,13,11,1.1,55],
- [['חזה עוף','חזה'],165,31,3.6,0,150],[['שניצל'],260,18,14,15,120],[['פרגית','פרגיות'],190,19,12,0,120],[['עוף','כרעיים'],215,19,15,0,150],
- [['סטייק','בשר בקר','אנטריקוט'],250,26,16,0,200],[['קבב','קציצות','קציצה'],240,17,17,6,60],[['המבורגר'],254,17,20,0,150],
- [['סלמון'],208,20,13,0,150],[['טונה'],116,26,1,0,80],[['דג','דניס','לברק','אמנון'],130,22,4.5,0,150],
- [['אורז'],130,2.7,0.3,28,160],[['פסטה','ספגטי'],158,5.8,0.9,31,180],[['קוסקוס'],112,3.8,0.2,23,150],[['פתיתים'],150,5,0.6,31,150],[['קינואה'],120,4.4,1.9,21,150],
- [['פיתה','פיתות'],275,9,1.2,56,90],[['לחם מלא'],250,12,3.5,41,30],[['לחמניה','לחמנייה'],280,9,4,52,70],[['לחם'],265,9,3.2,49,30],[['בגט'],270,9,1.5,55,60],[['טורטיה'],300,8,7,50,60],
- [['תפוח אדמה','תפוחי אדמה','פירה'],87,1.9,0.1,20,150],[['צ׳יפס',"צ'יפס",'ציפס'],312,3.4,15,41,150],[['בטטה'],90,2,0.2,21,150],
- [['חומוס'],170,8,10,14,100],[['טחינה'],600,17,54,20,15],[['פלאפל'],333,13,18,32,20],[['שקשוקה'],95,6,6.5,4,250],[['בורקס'],390,7,24,37,100],[['מלאווח'],330,6,18,36,120],[['ג׳חנון',"ג'חנון"],350,6,19,40,120],
- [['שעועית'],120,8,0.5,21,150],[['עדשים'],116,9,0.4,20,150],[['טופו'],144,15,9,3,100],
- [['סלט ירקות','סלט'],22,0.9,0.2,4.2,150],[['מלפפון','מלפפונים'],15,0.7,0.1,3.6,100],[['עגבנייה','עגבניה','עגבניות'],18,0.9,0.2,3.9,120],[['ברוקולי'],35,2.4,0.4,7,100],[['גזר'],41,0.9,0.2,10,70],[['אבוקדו'],160,2,15,9,100],
- [['תפוח','תפוחים'],52,0.3,0.2,14,180],[['בננה','בננות'],89,1.1,0.3,23,120],[['תפוז','תפוזים'],47,0.9,0.1,12,150],[['ענבים'],69,0.7,0.2,18,150],[['תמר','תמרים'],282,2.5,0.4,75,8],[['אבטיח'],30,0.6,0.2,8,300],
- [['יוגורט חלבון'],60,10,0,4.5,200],[['יוגורט'],61,3.5,3.3,4.7,150],[['קוטג׳',"קוטג'",'קוטג'],100,11,5,1.5,125],[['גבינה לבנה'],95,9,5,3.5,30],[['גבינה צהובה'],350,25,27,1,25],[['בולגרית','פטה'],265,14,21,4,40],[['לבנה'],150,6,12,4,30],
- [['חלב'],60,3.2,3,4.8,240],[['שוקו'],80,3.3,2,12,240],[['קפה הפוך','הפוך','קפוצ׳ינו'],60,3.2,3,4.8,200],[['קפה'],2,0.3,0,0,200],
- [['שיבולת שועל','קוואקר'],380,13,7,60,40],[['גרנולה'],470,10,20,64,50],[['קורנפלקס'],370,7,1,84,30],
- [['שקדים'],580,21,50,22,30],[['אגוזים','אגוזי מלך'],654,15,65,14,30],[['חמאת בוטנים'],588,25,50,20,15],[['במבה'],535,16,34,40,25],
- [['שוקולד'],540,7,31,57,25],[['עוגה'],380,5,17,53,80],[['עוגייה','עוגיות'],480,6,22,65,15],[['גלידה'],207,3.5,11,24,100],
- [['פיצה'],266,11,10,33,120],[['שווארמה'],220,20,14,3,200],[['סושי'],150,6,1.5,28,30],
- [['שמן זית','שמן'],884,0,100,0,13],[['חמאה'],717,0.9,81,0.1,10],[['דבש'],304,0.3,0,82,20],[['סוכר'],387,0,0,100,5],
- [['אבקת חלבון','שייק חלבון'],380,75,6,8,30],[['קולה','קוקה קולה'],42,0,0,10.6,330],[['בירה'],43,0.5,0,3.6,330],[['יין'],83,0.1,0,2.6,150],[['מיץ תפוזים','מיץ'],45,0.7,0.2,10,240]
+ [['ביצה','ביצים','ביצה קשה','חביתה'],155,13,11,1.1,55,0],
+ [['חזה עוף','חזה'],165,31,3.6,0,150,0],[['שניצל'],260,18,14,15,120,0.7],[['פרגית','פרגיות'],190,19,12,0,120,0],[['עוף','כרעיים'],215,19,15,0,150,0],
+ [['סטייק','בשר בקר','אנטריקוט'],250,26,16,0,200,0],[['קבב','קציצות','קציצה'],240,17,17,6,60,0.5],[['המבורגר'],254,17,20,0,150,0],
+ [['סלמון'],208,20,13,0,150,0],[['טונה'],116,26,1,0,80,0],[['דג','דניס','לברק','אמנון'],130,22,4.5,0,150,0],
+ [['אורז'],130,2.7,0.3,28,160,0.4],[['פסטה','ספגטי'],158,5.8,0.9,31,180,1.8],[['קוסקוס'],112,3.8,0.2,23,150,1.4],[['פתיתים'],150,5,0.6,31,150,1.5],[['קינואה'],120,4.4,1.9,21,150,2.8],
+ [['פיתה','פיתות'],275,9,1.2,56,90,2.2],[['לחם מלא'],250,12,3.5,41,30,6],[['לחמניה','לחמנייה'],280,9,4,52,70,2.5],[['לחם'],265,9,3.2,49,30,2.7],[['בגט'],270,9,1.5,55,60,2.7],[['טורטיה'],300,8,7,50,60,3],
+ [['תפוח אדמה','תפוחי אדמה','פירה'],87,1.9,0.1,20,150,1.8],[['צ׳יפס',"צ'יפס",'ציפס'],312,3.4,15,41,150,3.8],[['בטטה'],90,2,0.2,21,150,3],
+ [['חומוס'],170,8,10,14,100,6],[['טחינה'],600,17,54,20,15,9],[['פלאפל'],333,13,18,32,20,4.9],[['שקשוקה'],95,6,6.5,4,250,1.5],[['בורקס'],390,7,24,37,100,1.5],[['מלאווח'],330,6,18,36,120,1.5],[['ג׳חנון',"ג'חנון"],350,6,19,40,120,1.5],
+ [['שעועית'],120,8,0.5,21,150,6.4],[['עדשים'],116,9,0.4,20,150,7.9],[['טופו'],144,15,9,3,100,2.3],
+ [['סלט ירקות','סלט'],22,0.9,0.2,4.2,150,1.2],[['מלפפון','מלפפונים'],15,0.7,0.1,3.6,100,0.5],[['עגבנייה','עגבניה','עגבניות'],18,0.9,0.2,3.9,120,1.2],[['ברוקולי'],35,2.4,0.4,7,100,2.6],[['גזר'],41,0.9,0.2,10,70,2.8],[['אבוקדו'],160,2,15,9,100,6.7],
+ [['תפוח','תפוחים'],52,0.3,0.2,14,180,2.4],[['בננה','בננות'],89,1.1,0.3,23,120,2.6],[['תפוז','תפוזים'],47,0.9,0.1,12,150,2.4],[['ענבים'],69,0.7,0.2,18,150,0.9],[['תמר','תמרים'],282,2.5,0.4,75,8,8],[['אבטיח'],30,0.6,0.2,8,300,0.4],
+ [['יוגורט חלבון'],60,10,0,4.5,200,0],[['יוגורט'],61,3.5,3.3,4.7,150,0],[['קוטג׳',"קוטג'",'קוטג'],100,11,5,1.5,125,0],[['גבינה לבנה'],95,9,5,3.5,30,0],[['גבינה צהובה'],350,25,27,1,25,0],[['בולגרית','פטה'],265,14,21,4,40,0],[['לבנה'],150,6,12,4,30,0],
+ [['חלב'],60,3.2,3,4.8,240,0],[['שוקו'],80,3.3,2,12,240,0.8],[['קפה הפוך','הפוך','קפוצ׳ינו'],60,3.2,3,4.8,200,0],[['קפה'],2,0.3,0,0,200,0],
+ [['שיבולת שועל','קוואקר'],380,13,7,60,40,10],[['גרנולה'],470,10,20,64,50,7],[['קורנפלקס'],370,7,1,84,30,3],
+ [['שקדים'],580,21,50,22,30,12.5],[['אגוזים','אגוזי מלך'],654,15,65,14,30,6.7],[['חמאת בוטנים'],588,25,50,20,15,6],[['במבה'],535,16,34,40,25,3.6],
+ [['שוקולד'],540,7,31,57,25,3.4],[['עוגה'],380,5,17,53,80,1],[['עוגייה','עוגיות'],480,6,22,65,15,2],[['גלידה'],207,3.5,11,24,100,0.7],
+ [['פיצה'],266,11,10,33,120,2.3],[['שווארמה'],220,20,14,3,200,0.5],[['סושי'],150,6,1.5,28,30,0.8],
+ [['שמן זית','שמן'],884,0,100,0,13,0],[['חמאה'],717,0.9,81,0.1,10,0],[['דבש'],304,0.3,0,82,20,0.2],[['סוכר'],387,0,0,100,5,0],
+ [['אבקת חלבון','שייק חלבון'],380,75,6,8,30,2],[['קולה','קוקה קולה'],42,0,0,10.6,330,0],[['בירה'],43,0.5,0,3.6,330,0],[['יין'],83,0.1,0,2.6,150,0],[['מיץ תפוזים','מיץ'],45,0.7,0.2,10,240,0.2]
 ];
+// grams in one cup (240 ml) for foods people measure in cups; others fall back to their usual serving
+const CUP={'שיבולת שועל':80,'גרנולה':110,'קורנפלקס':30,'אורז':160,'פסטה':140,'קוסקוס':160,'פתיתים':160,'קינואה':185,'עדשים':200,'שעועית':180,
+  'חלב':245,'שוקו':250,'מיץ תפוזים':250,'קפה הפוך':240,'קפה':240,'יוגורט':245,'יוגורט חלבון':245,'קוטג׳':225,'שקדים':140,'אגוזים':100,'ענבים':150,
+  'סלט ירקות':150,'חומוס':240,'ברוקולי':90,'גזר':130,'תפוח אדמה':210,'אבטיח':155,'גלידה':140,'במבה':25};
 const ALIASES=FOODS.flatMap((f,i)=>f[0].map(a=>({a,i}))).sort((x,y)=>y.a.length-x.a.length);
 const WORDNUM={'חצי':0.5,'רבע':0.25,'אחד':1,'אחת':1,'שני':2,'שתי':2,'שניים':2,'שתיים':2,'שלוש':3,'שלושה':3,'ארבע':4,'ארבעה':4,'חמש':5,'חמישה':5,'כמה':2};
 function localAnalyze(text){
@@ -785,24 +800,24 @@ function localAnalyze(text){
       const pre=t.slice(Math.max(0,pos-24),pos).split(',').pop().trim().split(/\s+/).filter(Boolean);
       let qty=null,grams=null;
       for(let k=pre.length-1;k>=Math.max(0,pre.length-3);k--){
-        const w=pre[k].replace(/^ו/,'');const n=parseFloat(w.replace(/[^\d.]/g,''));
-        if(/^(גרם|ג׳|ג'|גר|g)$/.test(w)){const nn=parseFloat(pre[k-1]);if(!isNaN(nn)){grams=nn;break}continue}
+        const w=pre[k].replace(/^ו-?/,'');const n=parseFloat(w.replace(/[^\d.]/g,''));
+        if(/^(גרם|ג׳|ג'|גר|g)$/.test(w)){const nn=parseFloat(String(pre[k-1]||'').replace(/[^\d.]/g,''));if(!isNaN(nn)){grams=nn;break}continue}
         if(/^\d+(\.\d+)?(גרם|ג׳|ג'|גר|g)$/.test(w)){grams=n;break}
-        if(/^כוס|^כוסות/.test(w))unit=f[5]>=150?f[5]:200;
+        if(/^כוס|^כוסות/.test(w))unit=CUP[f[0][0]]||(f[5]>=150?f[5]:150);
         else if(/^כף|^כפות/.test(w))unit=15;
         else if(/^כפית/.test(w))unit=5;
-        else if(/^פרוס|^חתיכ|^יחיד|^מנה|^מנות|^קערה|^צלחת/.test(w)){if(/^קערה|^צלחת/.test(w))unit=Math.max(unit,250)}
+        else if(/^פרוס|^חתיכ|^יחיד|^מנה|^מנות|^קער|^צלח/.test(w)){if(/^קער|^צלח/.test(w))unit=Math.max(unit,250)}
         else if(!isNaN(n)&&/\d/.test(w)){qty=n;break}
         else if(WORDNUM[w]!=null){qty=WORDNUM[w];break}
         else break;
       }
       if(grams==null)grams=(qty==null?1:qty)*unit;
       const m=grams/100;
-      items.push({pos,...it(a,r0(grams),r0(f[1]*m),r1(f[2]*m),r1(f[3]*m),r1(f[4]*m))});
+      items.push({pos,...it(a,r0(grams),r0(f[1]*m),r1(f[2]*m),r1(f[3]*m),r1(f[4]*m),r1((f[6]||0)*m))});
     }
   }
   items.sort((x,y)=>x.pos-y.pos);items.forEach(x=>delete x.pos);
-  return {title:text.trim().slice(0,40),items,note:items.length?'חושב לפי מאגר מקומי של מאכלים נפוצים ומנה ממוצעת. תקן גרמים אם צריך.':''};
+  return {local:true,title:text.trim().slice(0,40),items,note:items.length?'חושב לפי מאגר מקומי של מאכלים נפוצים ומנה ממוצעת. תקן גרמים אם צריך.':''};
 }
 
 /* ---------- image prep ---------- */
@@ -850,7 +865,7 @@ function renderToday(){
   $('#kLeftLbl').textContent=left>=0?'קלוריות נשארו':'קלוריות מעל היעד';
   $('#plateC').classList.toggle('over',left<0);
   $('#kEaten').textContent=r0(t.kcal).toLocaleString('he-IL');$('#kGoal').textContent=g.kcal.toLocaleString('he-IL');
-  [['P','protein'],['F','fat'],['C','carbs']].forEach(([k,f])=>{
+  [['P','protein'],['F','fat'],['C','carbs'],['I','fiber']].forEach(([k,f])=>{
     $('#m'+k).textContent=r0(t[f]);$('#g'+k).textContent=g[f];$('#b'+k).style.width=(g[f]>0?Math.min(100,t[f]/g[f]*100):0)+'%';
   });
   // plate arcs: each macro's share of calories eaten, scaled to the goal
@@ -864,7 +879,7 @@ function renderToday(){
     const g2=ms.filter(m=>m.meal===k);if(!g2.length)return'';
     return `<h3><span>${lbl}</span><span class="num">${r0(sum(g2).kcal)} קק״ל</span></h3>`+g2.map(m=>`
       <div class="meal"><div class="thumb" ${m.thumb?`style="background-image:url(${m.thumb})"`:''}>${m.thumb?'':ICON_DISH}</div>
-      <div class="mealMain"><b>${esc(m.name)}</b><small class="num"><span class="p">ח ${r0(m.protein)}</span><span class="f">ש ${r0(m.fat)}</span><span class="c">פ ${r0(m.carbs)}</span></small></div>
+      <div class="mealMain"><b>${esc(m.name)}</b><small class="num"><span class="p">ח ${r0(m.protein)}</span><span class="f">ש ${r0(m.fat)}</span><span class="c">פ ${r0(m.carbs)}</span><span class="i">ס ${r0(m.fiber||0)}</span></small></div>
       <div class="mealK num">${r0(m.kcal)}<small>קק״ל</small></div>
       <button class="rep" data-rep="${m.id}" aria-label="הוסף שוב להיום" title="הוסף שוב להיום">${ICON_REPEAT}</button>
       <button class="del" data-del="${m.id}" aria-label="מחק ארוחה"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>`).join('');
@@ -892,7 +907,7 @@ $('#desc').addEventListener('input',updAnalyze);
 const onPhoto=async e=>{
   const f=e.target.files&&e.target.files[0];if(!f)return;
   try{
-    const img=await loadImg(f);const bl=await drawTo(img,1024,'image/jpeg',0.82).blob();if(!bl)throw new Error('blob');photoBlob=bl;photoThumb=thumbOf(img);
+    const img=await loadImg(f);const bl=await drawTo(img,1280,'image/jpeg',0.85).blob();if(!bl)throw new Error('blob');photoBlob=bl;photoThumb=thumbOf(img);
     const shot=$('#shot');shot.classList.add('has');
     shot.querySelectorAll('img,.clear').forEach(x=>{if(x.src)URL.revokeObjectURL(x.src);x.remove()});
     const im=document.createElement('img');im.src=URL.createObjectURL(photoBlob);im.alt='התמונה שבחרת';shot.appendChild(im);
@@ -912,7 +927,6 @@ $('#analyze').onclick=async()=>{
   $('#analyze').disabled=true;
   let res=null;
   try{
-    if(!photoBlob&&desc&&viaServer(false)){const loc=localAnalyze(desc);if(loc.items.length)res=loc}
     if(!res&&aiAvailable(!!photoBlob)){setStatus(photoBlob?'מזהה את האוכל בתמונה… זה לוקח עד חצי דקה':'מחשב ערכים…',false,true);res=await aiAnalyze(desc,aiAvailable(true)?photoBlob:null)}
   }catch(e){
     const msg=e&&e.status===401&&!e.server?'מפתח ה-API לא תקין. בדוק אותו במסך יעדים.':errText(e);
@@ -925,32 +939,50 @@ $('#analyze').onclick=async()=>{
   updAnalyze();
   if(!res||!res.items||!res.items.length){setStatus(res&&res.note?res.note:'לא זיהיתי מאכלים. נסה לכתוב כמות + שם, למשל "150 גרם חזה עוף".',true);return}
   setStatus('');
-  pending={title:(desc&&desc.length<=60?desc:res.title)||desc.slice(0,60)||'ארוחה',note:res.note||'',items:res.items.map(x=>{
-    const n=v=>Math.max(0,Number(v)||0);return it(String(x.name||'פריט').slice(0,60),r0(n(x.grams)),r0(n(x.kcal)),r1(n(x.protein)),r1(n(x.fat)),r1(n(x.carbs)))})};
+  const lowConf=res.confidence==='low'&&!res.local;
+  pending={fixable:!res.local,title:(desc&&desc.length<=60?desc:res.title)||desc.slice(0,60)||'ארוחה',note:(lowConf?'קשה להעריך את הכמות, כדאי לבדוק את הגרמים. ':'')+(res.note||''),items:res.items.map(x=>{
+    const n=v=>Math.max(0,Number(v)||0),g=n(x.grams),p=x.per100&&typeof x.per100==='object'?x.per100:null,k=g/100,v=f=>p?n(p[f])*k:n(x[f]);
+    return it(String(x.name||'פריט').slice(0,60),r0(g),r0(v('kcal')),r1(v('protein')),r1(v('fat')),r1(v('carbs')),r1(v('fiber')))})};
   renderResult();
 };
-const itemNums=x=>`<span>${r0(x.kcal)} קק״ל</span><span style="color:var(--pro)">חלבון ${r1(x.protein)}</span><span style="color:var(--fat)">שומן ${r1(x.fat)}</span><span style="color:var(--carb)">פחמימה ${r1(x.carbs)}</span>`;
+const itemNums=x=>`<span>${r0(x.kcal)} קק״ל</span><span style="color:var(--pro)">חלבון ${r1(x.protein)}</span><span style="color:var(--fat)">שומן ${r1(x.fat)}</span><span style="color:var(--carb)">פחמימה ${r1(x.carbs)}</span><span style="color:var(--fib)">סיבים ${r1(x.fiber||0)}</span>`;
 function renderTotals(){
   const t=sum(pending.items);
   $('#resK').innerHTML=`${r0(t.kcal)} <small>קק״ל</small>`;
-  $('#rP').innerHTML=`${r0(t.protein)}<em> ג׳</em>`;$('#rF').innerHTML=`${r0(t.fat)}<em> ג׳</em>`;$('#rC').innerHTML=`${r0(t.carbs)}<em> ג׳</em>`;
+  $('#rP').innerHTML=`${r0(t.protein)}<em> ג׳</em>`;$('#rF').innerHTML=`${r0(t.fat)}<em> ג׳</em>`;$('#rC').innerHTML=`${r0(t.carbs)}<em> ג׳</em>`;$('#rI').innerHTML=`${r1(t.fiber)}<em> ג׳</em>`;
   pending.items.forEach((x,i)=>{const el=$('#is'+i);if(el)el.innerHTML=itemNums(x)});
 }
+function scaleItem(x,f){const b=x.base,g=Math.round(b.grams*f),k=b.grams?g/b.grams:0;Object.assign(x,{grams:g,kcal:r0(b.kcal*k),protein:r1(b.protein*k),fat:r1(b.fat*k),carbs:r1(b.carbs*k),fiber:r1((b.fiber||0)*k)})}
+$('#portion').addEventListener('click',e=>{
+  const btn=e.target.closest('button');if(!btn||!pending)return;const f=+btn.dataset.f;
+  pending.items.forEach(x=>scaleItem(x,f));
+  pending.items.forEach((x,i)=>{const el=$('#g'+i);if(el)el.value=x.grams});
+  document.querySelectorAll('#portion button').forEach(b=>b.classList.toggle('on',b===btn));renderTotals();
+});
 function renderResult(){
   const r=$('#result');r.hidden=!pending;$('#addForm').hidden=!!pending;
   if(!pending)return;
   if(document.activeElement!==$('#resTitle'))$('#resTitle').value=pending.title;
+  document.querySelectorAll('#portion button').forEach(b=>b.classList.toggle('on',b.dataset.f==='1'));
   $('#items').innerHTML=pending.items.map((x,i)=>`<div class="item"><b>${esc(x.name)}</b>
     <span class="g"><input class="num" type="number" inputmode="numeric" min="0" id="g${i}" data-i="${i}" value="${x.grams}" aria-label="גרמים של ${esc(x.name)}"> ג׳</span>
     <small class="num" id="is${i}">${itemNums(x)}</small></div>`).join('');
   $('#resNote').hidden=!pending.note;$('#resNote').textContent=pending.note;
+  $('#fixBtn').hidden=!(pending.fixable&&aiAvailable(!!photoBlob));$('#fixForm').hidden=true;$('#fixText').value='';
   renderTotals();
 }
 $('#items').addEventListener('input',e=>{
   const i=+e.target.dataset.i;if(isNaN(i))return;const x=pending.items[i],b=x.base,g=Math.max(0,Number(e.target.value)||0);
-  const k=b.grams?g/b.grams:0;Object.assign(x,{grams:g,kcal:r0(b.kcal*k),protein:r1(b.protein*k),fat:r1(b.fat*k),carbs:r1(b.carbs*k)});renderTotals();
+  const k=b.grams?g/b.grams:0;Object.assign(x,{grams:g,kcal:r0(b.kcal*k),protein:r1(b.protein*k),fat:r1(b.fat*k),carbs:r1(b.carbs*k),fiber:r1((b.fiber||0)*k)});renderTotals();
+  document.querySelectorAll('#portion button').forEach(btn=>btn.classList.remove('on'));
 });
 $('#resTitle').addEventListener('input',e=>{if(pending)pending.title=e.target.value});
+$('#fixBtn').onclick=()=>{$('#fixBtn').hidden=true;$('#fixForm').hidden=false;$('#fixText').focus()};
+$('#fixForm').addEventListener('submit',e=>{
+  e.preventDefault();const fix=$('#fixText').value.trim();if(!fix)return;
+  const prev=$('#desc').value.trim();$('#desc').value=prev?`${prev}. ${fix}`:fix;
+  pending=null;renderResult();updAnalyze();$('#analyze').click();
+});
 $('#discard').onclick=()=>{pending=null;renderResult()};
 $('#save').onclick=()=>{
   if(!pending)return;
@@ -1049,7 +1081,7 @@ async function lookupBarcode(raw){
     const g=num(p.serving_quantity)||100,k=g/100;
     setStatus('');clearPhoto();
     pending={title:name,note:`ערכים לפי ${p.serving_quantity?`מנה של ${r0(g)} ג׳`:'100 ג׳'} מ-Open Food Facts. שנה את הגרמים לכמות שאכלת.`,
-      items:[it(name,r0(g),r0(kcal*k),r1(num(n.proteins_100g)*k),r1(num(n.fat_100g)*k),r1(num(n.carbohydrates_100g)*k))]};
+      items:[it(name,r0(g),r0(kcal*k),r1(num(n.proteins_100g)*k),r1(num(n.fat_100g)*k),r1(num(n.carbohydrates_100g)*k),r1(num(n.fiber_100g)*k))]};
     renderResult();
   }catch(e){setStatus(e&&e.server==='timeout'?'החיפוש לקח יותר מדי זמן. נסה שוב.':'לא הצלחתי להגיע למאגר המוצרים. בדוק חיבור לאינטרנט.',true)}
 }
@@ -1070,7 +1102,8 @@ function calcTargets(p){
   const protein=Math.round(w*(p.goal==='keep'?1.6:1.8));
   const fat=Math.round(kcal*0.27/9);
   const carbs=Math.max(0,Math.round((kcal-protein*4-fat*9)/4));
-  return {bmr:Math.round(bmr),tdee:Math.round(tdee),kcal,protein,fat,carbs,floored:raw<floor};
+  const fiber=Math.round(kcal/1000*14); // 14 g per 1000 kcal (Dietary Guidelines)
+  return {bmr:Math.round(bmr),tdee:Math.round(tdee),kcal,protein,fat,carbs,fiber,floored:raw<floor};
 }
 const calcProfile=()=>S.settings.profile||(S.settings.profile={});
 function renderCalc(){
@@ -1083,7 +1116,7 @@ function renderCalc(){
   $('#calcApply').disabled=!t;
   $('#calcOut').innerHTML=!t?'':`<div>חילוף חומרים במנוחה: <b class="num">${f(t.bmr)}</b> · שריפה יומית משוערת: <b class="num">${f(t.tdee)}</b></div>
     <div>יעד יומי: <b class="num">${f(t.kcal)} קק״ל</b>${p.goal==='lose'?(t.floored?' (לא יורדים מתחת למינימום הבטוח)':' (פחות 500 ביום, כחצי ק״ג בשבוע)'):p.goal==='gain'?' (פלוס 300 ביום)':''}</div>
-    <div class="macroLine num"><span style="color:var(--pro)">חלבון ${t.protein} ג׳</span><span style="color:var(--fat)">שומן ${t.fat} ג׳</span><span style="color:var(--carb)">פחמימה ${t.carbs} ג׳</span></div>
+    <div class="macroLine num"><span style="color:var(--pro)">חלבון ${t.protein} ג׳</span><span style="color:var(--fat)">שומן ${t.fat} ג׳</span><span style="color:var(--carb)">פחמימה ${t.carbs} ג׳</span><span style="color:var(--fib)">סיבים ${t.fiber} ג׳</span></div>
     <div class="hint">הערכה לפי נוסחת Mifflin-St Jeor. היא לא מחליפה ייעוץ של תזונאי.</div>`;
 }
 function calcSave(){persist();renderCalc()}
@@ -1093,7 +1126,7 @@ $('#cGoal').onclick=e=>{const c=e.target.closest('.chip');if(c){calcProfile().go
 $('#cAct').addEventListener('change',e=>{calcProfile().act=e.target.value;calcSave()});
 $('#calcApply').onclick=()=>{
   const p=calcProfile(),t=calcTargets({...p,act:p.act||'1.375'});if(!t)return;
-  p.act=p.act||'1.375';Object.assign(S.settings,{kcal:t.kcal,protein:t.protein,fat:t.fat,carbs:t.carbs});
+  p.act=p.act||'1.375';Object.assign(S.settings,{kcal:t.kcal,protein:t.protein,fat:t.fat,carbs:t.carbs,fiber:t.fiber});
   persist();renderSettings();renderToday();toast('היעדים היומיים עודכנו');
 };
 
@@ -1183,7 +1216,7 @@ function drawChart(P,target){
 }
 
 /* ---------- UI: settings ---------- */
-const SETS=[['#sK','kcal',800,6000],['#sP','protein',0,400],['#sF','fat',0,300],['#sC','carbs',0,800]];
+const SETS=[['#sK','kcal',800,6000],['#sP','protein',0,400],['#sF','fat',0,300],['#sC','carbs',0,800],['#sI','fiber',0,100]];
 function renderSettings(){
   SETS.forEach(([s,k])=>$(s).value=S.settings[k]);$('#sT').value=S.settings.target||'';$('#sKey').value=S.settings.apiKey||'';
 }
