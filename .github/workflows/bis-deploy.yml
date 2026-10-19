@@ -24,6 +24,10 @@ on:
         description: 'Optional JPEG path in the repo for the recognition test'
         type: string
         default: ''
+      test_repeat:
+        description: 'How many times to run the recognition test (consistency check)'
+        type: number
+        default: 1
 concurrency: bis-deploy
 jobs:
   deploy:
@@ -97,8 +101,10 @@ jobs:
         run: |
           if [ -n "$TEST_IMAGE_PATH" ]; then export TEST_IMAGE=$(base64 -w0 "$TEST_IMAGE_PATH"); fi
           python3 -c "import json,os;i=os.environ.get('TEST_IMAGE','');d=os.environ.get('TEST_DESC','').strip() or ('' if i else 'ביצה קשה אחת ופרוסת לחם');b={'desc':d,'device':'ghdeploy001'};b.update({'image':i} if i else {});print('desc:',repr(d),'image chars:',len(i),file=__import__('sys').stderr);print(json.dumps(b))" > body.json
-          curl -sS -m 120 -w '\nHTTP %{http_code}  time %{time_total}s\n' -X POST \
-            -H "Origin: $ORIGIN" -H "content-type: application/json" \
-            --data @body.json "$SERVER/analyze" | tee out.txt
-          grep -q '"items"' out.txt
-          python3 -c "import json;j=json.loads(open('out.txt').read().split(chr(10))[0]);print('TOTAL kcal',round(sum(x['kcal'] for x in j['items'])),'| P',round(sum(x['protein'] for x in j['items']),1),'F',round(sum(x['fat'] for x in j['items']),1),'C',round(sum(x['carbs'] for x in j['items']),1))"
+          for n in $(seq 1 "${{ inputs.test_repeat || 1 }}"); do
+            curl -sS -m 120 -w '\nHTTP %{http_code}  time %{time_total}s\n' -X POST \
+              -H "Origin: $ORIGIN" -H "content-type: application/json" \
+              --data @body.json "$SERVER/analyze" | tee out.txt
+            grep -q '"items"' out.txt
+            python3 -c "import json;j=json.loads(open('out.txt').read().split(chr(10))[0]);S=lambda f:round(sum(x.get(f,0) for x in j['items']),1);print('RUN TOTAL kcal',round(S('kcal')),'| P',S('protein'),'F',S('fat'),'C',S('carbs'),'Fiber',S('fiber'),'| conf',j.get('confidence'))"
+          done

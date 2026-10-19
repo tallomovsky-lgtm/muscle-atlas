@@ -9,7 +9,7 @@
 //           DAILY_PER_IP     requests per network address per day, default 20
 //           DAILY_TOTAL      requests for everyone together per day, default 30
 
-const VERSION = 8;
+const VERSION = 9;
 const DEFAULT_ORIGINS = 'https://tallomovsky-lgtm.github.io';
 const MAX_IMAGE_B64 = 3_000_000; // ~2.2 MB jpeg; the app sends ~100-300 KB
 const MAX_DESC = 600;
@@ -88,21 +88,21 @@ function cors(origin, allowed) {
 }
 
 function prompt(desc, hasImg) {
-  return `You are an experienced dietitian estimating the nutrition of a meal ${hasImg ? 'from the attached photo' : 'from a description'}.
-${desc ? `The user says: """${desc}""". Trust this for what the food is and how much of it there is when it conflicts with the photo.` : ''}
-Think it through before answering:
-1. List every food and drink, including liquids (milk, juice, soup), toppings, spreads, cooking oil, sauces and dressings. In Israel milk is usually 3% fat.
-2. Estimate the whole portion shown and assume all of it is eaten. Judge size from the dish (dinner plate about 26 cm, cereal bowl about 15 cm, glass about 250 ml), cutlery and hands. When unsure, use the typical adult serving rather than the smallest plausible one: photo estimates usually come out too low, not too high.
-3. Use standard nutrition tables (USDA, Israeli food composition tables) with cooked or ready-to-eat weights.
-Typical servings for reference: a bowl of breakfast cereal 50-60 g with about 200 ml milk; a plate of cooked pasta or rice 200-250 g; a schnitzel 150-180 g; a pita 90-110 g; a plate of hummus 150-250 g; a shakshuka with 2 eggs and about 150 g sauce; 1 tablespoon of oil 13 g = 117 kcal.
+  return `You are an experienced clinical dietitian. Estimate the nutrition of the meal ${hasImg ? 'in the attached photo' : 'described below'}.
+${desc ? `The user says: """${desc}""". Treat this as reliable for what the food is and how much of it there is.` : ''}
+Method:
+1. Identify every food and drink separately, including liquids (milk, juice, soup), toppings, spreads, cooking oil, sauces and dressings. Hidden fat matters: fried or sauteed food usually carries 1-2 tablespoons of oil per portion. In Israel milk is usually 3% fat.
+2. Estimate the weight in grams of each item as served, assuming everything shown is eaten. Use scale cues: dinner plate about 26 cm, side plate about 20 cm, cereal bowl about 15 cm wide and about 400 ml when full, glass about 250 ml, tablespoon 15 ml, fork about 19 cm, an adult hand. Estimate the volume first, then convert to grams by density. When unsure, choose the typical adult serving rather than the smallest plausible one: photo estimates tend to come out too low.
+3. For each item give its nutrition per 100 g as eaten (cooked weights for cooked foods) from standard tables (USDA FoodData Central, the Israeli Tzameret tables). "carbs" means available carbohydrates without fiber, as on Israeli labels; give "fiber" separately.
+Typical servings for reference: a bowl of breakfast cereal 50-60 g with about 200 ml milk; a plate of cooked pasta or rice 200-250 g; a schnitzel 150-180 g; a pita 90-110 g; a plate of hummus 150-250 g; a shakshuka with 2 eggs and about 150 g sauce; an Israeli salad 150-200 g; 1 tablespoon of oil 13 g; 1 tablespoon of tahini 15 g.
 Typical Israeli foods are common (pita, hummus, schnitzel, shakshuka, salads, tahini, bourekas, sushi).
 Then reply with ONLY a JSON object, no other text:
-{"title":"<short Hebrew name for the whole meal>","items":[{"name":"<Hebrew name>","grams":<number>,"kcal":<number>,"protein":<number>,"fat":<number>,"carbs":<number>}],"note":"<one short Hebrew sentence with the portion sizes you assumed, so the user can correct them>"}
-If there is no food, return {"title":"","items":[],"note":"<Hebrew explanation>"}.`;
+{"title":"<short Hebrew name for the meal>","confidence":"<high|medium|low: how sure you are about the amounts>","items":[{"name":"<Hebrew name>","grams":<number>,"per100":{"kcal":<number>,"protein":<number>,"fat":<number>,"carbs":<number>,"fiber":<number>}}],"note":"<one short Hebrew sentence with the portion sizes you assumed, so the user can correct them>"}
+If there is no food, return {"title":"","confidence":"low","items":[],"note":"<Hebrew explanation>"}.`;
 }
 
 // Raw fetch: a Worker pasted into the Cloudflare dashboard has no npm bundler for the SDK.
-// The first attempt asks for medium effort (portion estimates need the reasoning) and
+// The first attempt asks for high effort (portion estimates need the reasoning) and
 // server-side refusal fallbacks; if the API rejects
 // the request shape (400 that isn't about credit), it retries once with only the basics.
 // Pasting easily adds spaces, a newline or quotes around the key.
@@ -180,7 +180,7 @@ async function callClaude(env, content, basic) {
   const body = { model: env.MODEL || 'claude-opus-5-5', max_tokens: 16000, messages: [{ role: 'user', content }] };
   if (!basic) {
     headers['anthropic-beta'] = 'server-side-fallback-2026-07-01';
-    body.output_config = { effort: 'medium' };
+    body.output_config = { effort: 'high' };
     body.fallbacks = 'default';
   }
   return fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers, body: JSON.stringify(body) });
@@ -265,16 +265,24 @@ async function analyze(env, content, quota, reply, state) {
   let out = null;
   if (a >= 0 && b > a) { try { out = JSON.parse(text.slice(a, b + 1)); } catch { out = null; } }
   if (!out) return reply(502, { error: 'parse', stop: msg.stop_reason || '' });
-  const num = v => Math.max(0, Number(v) || 0);
   return reply(200, {
     quota: { left: quota.left, limit: quota.limit },
     title: String(out.title || '').slice(0, 80),
     note: String(out.note || '').slice(0, 300),
-    items: (Array.isArray(out.items) ? out.items : []).slice(0, 20).map(x => ({
-      name: String(x.name || '').slice(0, 60), grams: num(x.grams), kcal: num(x.kcal),
-      protein: num(x.protein), fat: num(x.fat), carbs: num(x.carbs),
-    })),
+    confidence: ['high', 'medium', 'low'].includes(out.confidence) ? out.confidence : 'medium',
+    items: (Array.isArray(out.items) ? out.items : []).slice(0, 20).map(itemTotals),
   });
+}
+
+// The model gives grams and per-100 g values; totals are multiplied here so they stay
+// consistent (and match what the app does when the user edits the grams).
+const num = v => Math.max(0, Number(v) || 0);
+const r1 = v => Math.round(v * 10) / 10;
+function itemTotals(x) {
+  const grams = num(x.grams), p = x.per100 && typeof x.per100 === 'object' ? x.per100 : null, k = grams / 100;
+  const v = f => (p ? num(p[f]) * k : num(x[f]));
+  return { name: String(x.name || '').slice(0, 60), grams: Math.round(grams), kcal: Math.round(v('kcal')),
+    protein: r1(v('protein')), fat: r1(v('fat')), carbs: r1(v('carbs')), fiber: r1(v('fiber')) };
 }
 
 export default {
