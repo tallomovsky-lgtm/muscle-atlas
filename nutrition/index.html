@@ -210,6 +210,10 @@ textarea:focus,.inp:focus{border-color:var(--accent)}
 .item .g{display:flex;align-items:center;gap:4px;font-size:13px;color:var(--muted)}
 .item .g input{width:64px;height:32px;border:1px solid var(--line);border-radius:10px;background:var(--surface2);text-align:center;font-size:15px;font-weight:700}
 .item small{grid-column:1/-1;color:var(--muted);font-size:12.5px;display:flex;gap:10px;flex-wrap:wrap}
+.fixLink{color:var(--accent);font-weight:700;font-size:14px;text-align:center;padding:4px}
+.fixRow{display:flex;gap:8px}
+.fixRow .inp{flex:1;min-width:0;height:46px;padding:0 12px}
+.fixRow .btn{width:auto;padding:0 16px;height:46px;font-size:15px}
 .note{font-size:13px;color:var(--ink2);background:var(--surface2);border-radius:12px;padding:10px 12px}
 
 /* weight */
@@ -376,6 +380,8 @@ textarea:focus,.inp:focus{border-color:var(--accent)}
           <div class="seg" id="portion"><button type="button" data-f="0.75">קטנה יותר</button><button type="button" data-f="1" class="on">כמו שזוהה</button><button type="button" data-f="1.25">גדולה יותר</button><button type="button" data-f="1.5">הרבה יותר</button></div></div>
         <div class="items" id="items"></div>
         <div class="note" id="resNote" hidden></div>
+        <form class="fixRow" id="fixForm" hidden><input class="inp" id="fixText" autocomplete="off" placeholder="מה זה בדיוק? למשל: כריות שוקולד, קערה גדולה"><button class="btn" type="submit">חשב מחדש</button></form>
+        <button class="fixLink" id="fixBtn" type="button" hidden>זה לא בדיוק מה שאכלתי? תקן וחשב מחדש</button>
         <div class="row2"><button class="btn ghost" id="discard">בטל</button><button class="btn" id="save">הוסף ליומן</button></div>
       </div>
     </section>
@@ -934,7 +940,7 @@ $('#analyze').onclick=async()=>{
   if(!res||!res.items||!res.items.length){setStatus(res&&res.note?res.note:'לא זיהיתי מאכלים. נסה לכתוב כמות + שם, למשל "150 גרם חזה עוף".',true);return}
   setStatus('');
   const lowConf=res.confidence==='low'&&!res.local;
-  pending={title:(desc&&desc.length<=60?desc:res.title)||desc.slice(0,60)||'ארוחה',note:(lowConf?'קשה להעריך את הכמות, כדאי לבדוק את הגרמים. ':'')+(res.note||''),items:res.items.map(x=>{
+  pending={fixable:!res.local,title:(desc&&desc.length<=60?desc:res.title)||desc.slice(0,60)||'ארוחה',note:(lowConf?'קשה להעריך את הכמות, כדאי לבדוק את הגרמים. ':'')+(res.note||''),items:res.items.map(x=>{
     const n=v=>Math.max(0,Number(v)||0),g=n(x.grams),p=x.per100&&typeof x.per100==='object'?x.per100:null,k=g/100,v=f=>p?n(p[f])*k:n(x[f]);
     return it(String(x.name||'פריט').slice(0,60),r0(g),r0(v('kcal')),r1(v('protein')),r1(v('fat')),r1(v('carbs')),r1(v('fiber')))})};
   renderResult();
@@ -962,6 +968,7 @@ function renderResult(){
     <span class="g"><input class="num" type="number" inputmode="numeric" min="0" id="g${i}" data-i="${i}" value="${x.grams}" aria-label="גרמים של ${esc(x.name)}"> ג׳</span>
     <small class="num" id="is${i}">${itemNums(x)}</small></div>`).join('');
   $('#resNote').hidden=!pending.note;$('#resNote').textContent=pending.note;
+  $('#fixBtn').hidden=!(pending.fixable&&aiAvailable(!!photoBlob));$('#fixForm').hidden=true;$('#fixText').value='';
   renderTotals();
 }
 $('#items').addEventListener('input',e=>{
@@ -970,6 +977,12 @@ $('#items').addEventListener('input',e=>{
   document.querySelectorAll('#portion button').forEach(btn=>btn.classList.remove('on'));
 });
 $('#resTitle').addEventListener('input',e=>{if(pending)pending.title=e.target.value});
+$('#fixBtn').onclick=()=>{$('#fixBtn').hidden=true;$('#fixForm').hidden=false;$('#fixText').focus()};
+$('#fixForm').addEventListener('submit',e=>{
+  e.preventDefault();const fix=$('#fixText').value.trim();if(!fix)return;
+  const prev=$('#desc').value.trim();$('#desc').value=prev?`${prev}. ${fix}`:fix;
+  pending=null;renderResult();updAnalyze();$('#analyze').click();
+});
 $('#discard').onclick=()=>{pending=null;renderResult()};
 $('#save').onclick=()=>{
   if(!pending)return;
